@@ -14,7 +14,7 @@
     <dependencies>
         <dependency conf="solr-libs->default" org="org.apache.solr" name="solr-cell" rev="4.0.0"/>
         <dependency conf="solr-war->default" org="org.apache.solr" name="solr" rev="4.0.0" transitive="false" /> <!-- the war file -->
-        <dependency conf="autopsy->*" org="org.apache.solr" name="solr-solrj" rev="4.0.0"/>
+        <dependency conf="autopsy->*" org="org.apache.solr" name="solr-solrj" rev="4.8.1"/>
         <dependency conf="autopsy->*" org="commons-lang" name="commons-lang" rev="2.4"/>
         <dependency conf="autopsy->*" org="org.apache.tika" name="tika-parsers" rev="1.2"/>
         <!-- icu4j for pdfbox bidirectional text support, needs to be defined explicitely (it is optional) -->

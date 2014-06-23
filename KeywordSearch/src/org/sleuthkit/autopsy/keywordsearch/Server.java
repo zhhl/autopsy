@@ -176,9 +176,7 @@ public class Server {
     private String solrUrl;
 
     /**
-     * New instance for the server at the given URL
-     *
-     * @param url should be something like "http://localhost:23232/solr/"
+     * New instance for the server
      */
     Server() {
         initSettings();
@@ -186,13 +184,19 @@ public class Server {
         this.solrUrl = "http://localhost:" + currentSolrServerPort + "/solr"; //NON-NLS
         this.solrServer = new HttpSolrServer(solrUrl);
         serverAction = new ServerAction();
-        solrFolder = InstalledFileLocator.getDefault().locate("solr", Server.class.getPackage().getName(), false); //NON-NLS
-        instanceDir = solrFolder.getAbsolutePath() + File.separator + "solr"; //NON-NLS
+        //solrFolder = InstalledFileLocator.getDefault().locate("solr", Server.class.getPackage().getName(), false); //NON-NLS
+        //instanceDir = solrFolder.getAbsolutePath() + File.separator + "solr"; //NON-NLS
+        solrFolder = new File("Z:\\vmware-share\\example-solr");
+        instanceDir = solrFolder.getAbsolutePath() + File.separator + "solr" + File.separator + "collection1"; //NON-NLS
+        
         javaPath = PlatformUtil.getJavaPath();
 
         logger.log(Level.INFO, "Created Server instance"); //NON-NLS
     }
 
+    /**
+     * Set basic private values based on either defaults or properties. 
+     */
     private void initSettings() {
         if (ModuleSettings.settingExists(PROPERTIES_FILE, PROPERTIES_CURRENT_SERVER_PORT)) {
             try {
@@ -379,7 +383,7 @@ public class Server {
                     "-DSTOP.PORT=" + currentSolrStopPort, //NON-NLS
                     "-Djetty.port=" + currentSolrServerPort, //NON-NLS
                     "-DSTOP.KEY=" + KEY, //NON-NLS
-                    loggingProperties,
+                    // @@@ loggingProperties,
                     "-jar", //NON-NLS
                     "start.jar"}; //NON-NLS
                 
@@ -633,16 +637,7 @@ public class Server {
     /**
      * ** end single-case specific methods ***
      */
-    /**
-     * Open a core for the given case
-     *
-     * @param theCase the case to open core for
-     * @return
-     */
-    private synchronized Core openCore(Case theCase) throws KeywordSearchModuleException {
-        String dataDir = getIndexDirPath(theCase);
-        return this.openCore(DEFAULT_CORE_NAME, new File(dataDir));
-    }
+
 
     /**
      * commit current core if it exists
@@ -879,6 +874,17 @@ public class Server {
         return Long.toString(parentID) + Server.ID_CHUNK_SEP + Integer.toString(childID);
     }
 
+    /**
+     * Open a core for the given case
+     *
+     * @param theCase the case to open core for
+     * @return
+     */
+    private synchronized Core openCore(Case theCase) throws KeywordSearchModuleException {
+        String dataDir = getIndexDirPath(theCase);
+        return openCore(DEFAULT_CORE_NAME, new File(dataDir));
+    }
+    
     /**
      * Open a new core
      *
