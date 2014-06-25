@@ -26,8 +26,9 @@
    http://wiki.apache.org/solr/CoreAdmin
 -->
 
-<solr>
 
+<!--
+<solr>
   <solrcloud>
     <str name="host">${host:}</str>
     <int name="hostPort">${jetty.port:8983}</int>
@@ -41,5 +42,15 @@
     <int name="socketTimeout">${socketTimeout:0}</int>
     <int name="connTimeout">${connTimeout:0}</int>
   </shardHandlerFactory>
-
 </solr>
+-->
+<solr persistent="false">
+
+  <!--
+  adminPath: RequestHandler path to manage cores.
+    If 'null' (or absent), cores will not be manageable via request handler
+  -->
+  <cores adminPath="/admin/cores" shareSchema="true">
+  </cores>
+</solr>
+
