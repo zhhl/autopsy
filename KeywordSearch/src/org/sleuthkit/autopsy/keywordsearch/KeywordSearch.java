@@ -38,8 +38,6 @@ import java.util.logging.Level;
  * The class also provides some global types and property change support on the server events.
  */
 public class KeywordSearch {
-
-    private static Server server;
     //we want a custom java.util.logging.Logger here for a reason
     //a separate logger from framework logs
     private static final Logger TIKA_LOGGER = Logger.getLogger("Tika"); //NON-NLS
@@ -57,10 +55,7 @@ public class KeywordSearch {
      * @return singleton instance of KeywordSearch server
      */
     public static synchronized Server getServer() {
-        if (server == null) {
-            server = new Server();
-        }
-        return server;
+        return Server.getInstance();
     }
 
     static {
@@ -131,16 +126,17 @@ public class KeywordSearch {
                 if (newValue != null) {
                     // new case is open
                     try {
-                        server.openCore();
+                        getServer().openCore();
                     } catch (Exception e) {
                         logger.log(Level.WARNING, "Could not open core."); //NON-NLS
+                        // @@@@ ADD POP-UP
                     }
                 } else if (oldValue != null) {
                     // a case was closed
                     try {
                         BlackboardResultWriter.stopAllWriters();
                         Thread.sleep(2000);
-                        server.closeCore();
+                        getServer().closeCore();
                     } catch (Exception e) {
                         logger.log(Level.WARNING, "Could not close core."); //NON-NLS
                     }

@@ -20,16 +20,8 @@ package org.sleuthkit.autopsy.keywordsearch;
 
 import java.awt.event.ActionEvent;
 import java.beans.PropertyChangeListener;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.lang.Long;
 import java.net.ConnectException;
 import java.net.ServerSocket;
 import java.net.SocketException;
@@ -52,7 +44,6 @@ import org.apache.solr.client.solrj.response.TermsResponse;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.common.util.NamedList;
-import org.openide.modules.InstalledFileLocator;
 import org.openide.modules.Places;
 import org.sleuthkit.autopsy.casemodule.Case;
 import org.sleuthkit.autopsy.coreutils.ModuleSettings;
@@ -63,7 +54,7 @@ import org.apache.solr.client.solrj.impl.XMLResponseParser;
 import org.apache.solr.common.SolrException;
 
 /**
- * Handles for keeping track of a Solr server and its cores
+ * Singleton that handles keeping track of a Solr server and its cores
  */
 public class Server {
 
@@ -149,11 +140,11 @@ public class Server {
     // TODO: DEFAULT_CORE_NAME needs to be replaced with unique names to support multiple open cases
     public static final String CORE_EVT = "CORE_EVT"; //NON-NLS
     public static final char ID_CHUNK_SEP = '_';
-    private String javaPath = "java"; //NON-NLS
+
     public static final Charset DEFAULT_INDEXED_TEXT_CHARSET = Charset.forName("UTF-8"); ///< default Charset to index text as
     private static final int MAX_SOLR_MEM_MB = 512; //TODO set dynamically based on avail. system resources
     private Process curSolrProcess = null;
-    private static Ingester ingester = null;
+
     static final String PROPERTIES_FILE = KeywordSearchSettings.MODULE_NAME;
     static final String PROPERTIES_CURRENT_SERVER_PORT = "IndexingServerPort"; //NON-NLS
     static final String PROPERTIES_CURRENT_STOP_PORT = "IndexingServerStopPort"; //NON-NLS
@@ -165,20 +156,28 @@ public class Server {
     private static final boolean DEBUG = false;//(Version.getBuildType() == Version.Type.DEVELOPMENT);
 
     public enum CORE_EVT_STATES {
-
         STOPPED, STARTED
     };
     private SolrServer solrServer;
-    private String instanceDir;
-    private File solrFolder;
+    private String instanceDirStr;     // Folder that has the 'conf' sub folder. 
+    private File jettyFolder;   // folder where start.jar is located
     private ServerAction serverAction;
-    private InputStreamPrinterThread errorRedirectThread;
-    private String solrUrl;
+    private String solrUrl; // URL to access SOLR, changes based on what port was used
+    
+    private static Server instance;
 
     /**
-     * New instance for the server
+     * Get singleton instance of this class.
+     * @return 
      */
-    Server() {
+    public static synchronized Server getInstance() {
+        if (instance == null) {
+            instance = new Server();
+        }
+        return instance;
+    }
+    
+    private Server() {
         initSettings();
 
         this.solrUrl = "http://localhost:" + currentSolrServerPort + "/solr"; //NON-NLS
@@ -186,11 +185,9 @@ public class Server {
         serverAction = new ServerAction();
         //solrFolder = InstalledFileLocator.getDefault().locate("solr", Server.class.getPackage().getName(), false); //NON-NLS
         //instanceDir = solrFolder.getAbsolutePath() + File.separator + "solr"; //NON-NLS
-        solrFolder = new File("Z:\\vmware-share\\example-solr");
-        instanceDir = solrFolder.getAbsolutePath() + File.separator + "solr" + File.separator + "collection1"; //NON-NLS
+        jettyFolder = new File("Z:\\vmware-share\\example-solr");
+        instanceDirStr = jettyFolder.getAbsolutePath() + File.separator + "solr" + File.separator + "collection1"; //NON-NLS
         
-        javaPath = PlatformUtil.getJavaPath();
-
         logger.log(Level.INFO, "Created Server instance"); //NON-NLS
     }
 
@@ -240,86 +237,33 @@ public class Server {
     int getCurrentSolrStopPort() {
         return currentSolrStopPort;
     }
-
+    
     /**
-     * Helper threads to handle stderr/stdout from Solr process
+     * Roll back logs and return the path to use. 
+     * @return File for log to start writing to. 
      */
-    private static class InputStreamPrinterThread extends Thread {
-
-        InputStream stream;
-        OutputStream out;
-        volatile boolean doRun = true;
-
-        InputStreamPrinterThread(InputStream stream, String type) {
-            this.stream = stream;
-            try {
-                final String log = Places.getUserDirectory().getAbsolutePath()
+    private static File getNewLogFile() {
+        final String log = Places.getUserDirectory().getAbsolutePath()
                         + File.separator + "var" + File.separator + "log" //NON-NLS
-                        + File.separator + "solr.log." + type; //NON-NLS
-                File outputFile = new File(log.concat(".0"));
-                File first = new File(log.concat(".1"));
-                File second = new File(log.concat(".2"));
-                if (second.exists()) {
-                    second.delete();
-                }
-                if (first.exists()) {
-                    first.renameTo(second);
-                }
-                if (outputFile.exists()) {
-                    outputFile.renameTo(first);
-                } else {
-                    outputFile.createNewFile();
-                }
-                out = new FileOutputStream(outputFile);
-
-            } catch (Exception ex) {
-                logger.log(Level.WARNING, "Failed to create solr log file", ex); //NON-NLS
-            }
+                        + File.separator + "solr.log."; //NON-NLS
+        File file0 = new File(log.concat(".0"));
+        File file1 = new File(log.concat(".1"));
+        File file2 = new File(log.concat(".2"));
+        
+        // roll back
+        if (file2.exists()) {
+            file2.delete();
         }
-
-        void stopRun() {
-            doRun = false;
+        if (file1.exists()) {
+            file1.renameTo(file2);
         }
-
-        @Override
-        public void run() {
-            InputStreamReader isr = new InputStreamReader(stream);
-            BufferedReader br = new BufferedReader(isr);
-            OutputStreamWriter osw = null;
-            BufferedWriter bw = null;
-            try {
-                osw = new OutputStreamWriter(out, PlatformUtil.getDefaultPlatformCharset());
-                bw = new BufferedWriter(osw);
-                String line = null;
-                while (doRun && (line = br.readLine()) != null) {
-                    bw.write(line);
-                    bw.newLine();
-                    if (DEBUG) {
-                        //flush buffers if dev version for debugging
-                        bw.flush();
-                    }
-                }
-                bw.flush();
-            } catch (IOException ex) {
-                logger.log(Level.WARNING, "Error redirecting Solr output stream"); //NON-NLS
-            } finally {
-                if (bw != null) {
-                    try {
-                        bw.close();
-                    } catch (IOException ex) {
-                        logger.log(Level.WARNING, "Error closing Solr output stream writer"); //NON-NLS
-                    }
-                }
-                 if (br != null) {
-                    try {
-                        br.close();
-                    } catch (IOException ex) {
-                        logger.log(Level.WARNING, "Error closing Solr output stream reader"); //NON-NLS
-                    }
-                }
-            }
-        }
+        if (file0.exists()) {
+            file0.renameTo(file1);
+        } 
+        
+        return file0;
     }
+
 
     /**
      * Get list of PIDs of currently running Solr processes
@@ -327,7 +271,7 @@ public class Server {
      * @return
      */
     List<Long> getSolrPIDs() {
-        List<Long> pids = new ArrayList<Long>();
+        List<Long> pids = new ArrayList<>();
 
         //NOTE: these needs to be in sync with process start string in start()
         final String pidsQuery = "Args.4.eq=-DSTOP.KEY=" + KEY + ",Args.7.eq=start.jar"; //NON-NLS
@@ -355,19 +299,19 @@ public class Server {
     }
 
     /**
-     * Tries to start a Solr instance in a separate process. Returns immediately
-     * (probably before the server is ready) and doesn't check whether it was
-     * successful.
+     * Tries to start a Solr instance in a separate process. Does some basic checking to see if it
+     * launched, but not detailed.  Throws exception if there was an error.
+     * 
      */
     void start() throws KeywordSearchModuleException, SolrServerNoPortException {
-        logger.log(Level.INFO, "Starting Solr server from: " + solrFolder.getAbsolutePath()); //NON-NLS
+        logger.log(Level.INFO, "Starting Solr server from: " + jettyFolder.getAbsolutePath()); //NON-NLS
         if (isPortAvailable(currentSolrServerPort)) {
             logger.log(Level.INFO, "Port [" + currentSolrServerPort + "] available, starting Solr"); //NON-NLS
             try {
                 final String MAX_SOLR_MEM_MB_PAR = "-Xmx" + Integer.toString(MAX_SOLR_MEM_MB) + "m"; //NON-NLS
 
                 String loggingPropertiesOpt = "-Djava.util.logging.config.file="; //NON-NLS
-                String loggingPropertiesFilePath = instanceDir + File.separator + "conf" + File.separator; //NON-NLS
+                String loggingPropertiesFilePath = instanceDirStr + File.separator + "conf" + File.separator; //NON-NLS
 
                 if (DEBUG) {
                     loggingPropertiesFilePath += "logging-development.properties"; //NON-NLS
@@ -377,13 +321,15 @@ public class Server {
 
                 final String loggingProperties = loggingPropertiesOpt + loggingPropertiesFilePath;
 
+                // NOTE that the method to get the PIDs of SOLR depends on the order of these
+                // arguments.  If they are changed here, change them there too.
                 final String [] SOLR_START_CMD = {
-                    javaPath,
+                    PlatformUtil.getJavaPath(),
                     MAX_SOLR_MEM_MB_PAR,
                     "-DSTOP.PORT=" + currentSolrStopPort, //NON-NLS
                     "-Djetty.port=" + currentSolrServerPort, //NON-NLS
                     "-DSTOP.KEY=" + KEY, //NON-NLS
-                    // @@@ loggingProperties,
+                    loggingProperties,
                     "-jar", //NON-NLS
                     "start.jar"}; //NON-NLS
                 
@@ -393,7 +339,12 @@ public class Server {
                 }
                 
                 logger.log(Level.INFO, "Starting Solr using: " + cmdSb.toString()); //NON-NLS
-                curSolrProcess = Runtime.getRuntime().exec(SOLR_START_CMD, null, solrFolder);
+                ProcessBuilder ps = new ProcessBuilder(SOLR_START_CMD);
+                ps.directory(jettyFolder);
+                ps.redirectErrorStream(true);
+                ps.redirectOutput(getNewLogFile());
+                
+                curSolrProcess = ps.start(); 
                 logger.log(Level.INFO, "Finished starting Solr"); //NON-NLS
 
                 try {
@@ -403,11 +354,7 @@ public class Server {
                 } catch (InterruptedException ex) {
                     logger.log(Level.WARNING, "Timer interrupted"); //NON-NLS
                 }
-                // Handle output to prevent process from blocking
-
-                errorRedirectThread = new InputStreamPrinterThread(curSolrProcess.getErrorStream(), "stderr"); //NON-NLS
-                errorRedirectThread.start();
-
+             
                 final List<Long> pids = this.getSolrPIDs();
                 logger.log(Level.INFO, "New Solr process PID: " + pids); //NON-NLS
             } catch (SecurityException ex) {
@@ -454,26 +401,7 @@ public class Server {
         return false;
     }
 
-    /**
-     * Changes the current solr server port. Only call this after available.
-     *
-     * @param port Port to change to
-     */
-    void changeSolrServerPort(int port) {
-        currentSolrServerPort = port;
-        ModuleSettings.setConfigSetting(PROPERTIES_FILE, PROPERTIES_CURRENT_SERVER_PORT, String.valueOf(port));
-    }
-
-    /**
-     * Changes the current solr stop port. Only call this after available.
-     *
-     * @param port Port to change to
-     */
-    void changeSolrStopPort(int port) {
-        currentSolrStopPort = port;
-        ModuleSettings.setConfigSetting(PROPERTIES_FILE, PROPERTIES_CURRENT_STOP_PORT, String.valueOf(port));
-    }
-
+    
     /**
      * Tries to stop a Solr instance.
      *
@@ -481,17 +409,17 @@ public class Server {
      */
     synchronized void stop() {
         try {
-            logger.log(Level.INFO, "Stopping Solr server from: " + solrFolder.getAbsolutePath()); //NON-NLS
+            logger.log(Level.INFO, "Stopping Solr server from: " + jettyFolder.getAbsolutePath()); //NON-NLS
             //try graceful shutdown
             final String [] SOLR_STOP_CMD = {
-              javaPath,
+              PlatformUtil.getJavaPath(),
               "-DSTOP.PORT=" + currentSolrStopPort, //NON-NLS
               "-DSTOP.KEY=" + KEY, //NON-NLS
               "-jar", //NON-NLS
               "start.jar", //NON-NLS
               "--stop", //NON-NLS
             };
-            Process stop = Runtime.getRuntime().exec(SOLR_STOP_CMD, null, solrFolder);
+            Process stop = Runtime.getRuntime().exec(SOLR_STOP_CMD, null, jettyFolder);
             logger.log(Level.INFO, "Waiting for stopping Solr server"); //NON-NLS
             stop.waitFor();
 
@@ -504,17 +432,8 @@ public class Server {
         } catch (InterruptedException ex) {
         } catch (IOException ex) {
         } finally {
-            //stop Solr stream -> log redirect threads
-            try {
-                if (errorRedirectThread != null) {
-                    errorRedirectThread.stopRun();
-                    errorRedirectThread = null;
-                }
-            } finally {
-                //if still running, kill it
-                killSolr();
-            }
-
+            //if still running, kill it
+            killSolr();
             logger.log(Level.INFO, "Finished stopping Solr server"); //NON-NLS
         }
     }
@@ -527,6 +446,7 @@ public class Server {
      * true
      */
     synchronized boolean isRunning() throws KeywordSearchModuleException {
+    
         try {
             // making a status request here instead of just doing solrServer.ping(), because
             // that doesn't work when there are no cores
@@ -907,11 +827,13 @@ public class Server {
 
             CoreAdminRequest.Create createCore = new CoreAdminRequest.Create();
             createCore.setDataDir(dataDir.getAbsolutePath());
-            createCore.setInstanceDir(instanceDir);
+            createCore.setInstanceDir(instanceDirStr);
             createCore.setCoreName(coreName);
 
-            this.solrServer.request(createCore);
-
+            solrServer.request(createCore);
+            
+            
+            
             final Core newCore = new Core(coreName);
 
             return newCore;
