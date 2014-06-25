@@ -52,6 +52,7 @@ import org.sleuthkit.datamodel.Content;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.client.solrj.impl.XMLResponseParser;
 import org.apache.solr.common.SolrException;
+import org.openide.modules.InstalledFileLocator;
 
 /**
  * Singleton that handles keeping track of a Solr server and its cores
@@ -183,9 +184,7 @@ public class Server {
         this.solrUrl = "http://localhost:" + currentSolrServerPort + "/solr"; //NON-NLS
         this.solrServer = new HttpSolrServer(solrUrl);
         serverAction = new ServerAction();
-        //solrFolder = InstalledFileLocator.getDefault().locate("solr", Server.class.getPackage().getName(), false); //NON-NLS
-        //instanceDir = solrFolder.getAbsolutePath() + File.separator + "solr"; //NON-NLS
-        jettyFolder = new File("Z:\\vmware-share\\example-solr");
+        jettyFolder = InstalledFileLocator.getDefault().locate("solr-4.8.1", Server.class.getPackage().getName(), false); //NON-NLS
         instanceDirStr = jettyFolder.getAbsolutePath() + File.separator + "solr" + File.separator + "collection1"; //NON-NLS
         
         logger.log(Level.INFO, "Created Server instance"); //NON-NLS
