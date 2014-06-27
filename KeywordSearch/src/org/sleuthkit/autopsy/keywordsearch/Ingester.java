@@ -186,11 +186,8 @@ class Ingester {
      * Visitor used to create param list to send to SOLR index.
      */
     private class GetContentFieldsV extends ContentVisitor.Default<Map<String, String>> {
-
-        private SleuthkitCase curCase = null;
         
         GetContentFieldsV() {
-            curCase = Case.getCurrentCase().getSleuthkitCase();
         }
         
         @Override
@@ -242,6 +239,10 @@ class Ingester {
         
 
         private Map<String, String> getCommonFields(AbstractFile af) {
+            // we do this at a method level because this class is created by
+            // a singleton, that may be created when no case is open
+            SleuthkitCase curCase = Case.getCurrentCase().getSleuthkitCase();
+        
             Map<String, String> params = new HashMap<String, String>();
             params.put(Server.Schema.ID.toString(), Long.toString(af.getId()));
             long dataSourceId = -1;

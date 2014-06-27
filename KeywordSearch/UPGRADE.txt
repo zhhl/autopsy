@@ -1,0 +1,16 @@
+Upgrading SOLR:
+- Download latest SOLR ZIP/tar file.
+- Copy the example folder into KeywordSearch/release and name it solr-version.  The example folder has Jetty configured to launch SOLR.
+- Commit the code to get a baseline of the original version (to make our changes more obvious).
+- Refer to previous version upgrades for what to modify, but here is the current list:
+-- Update jetty.xml to specify 127.0.0.1 to listen on instead of 0.0.0.0
+-- Update solr/solr.xml to not start a core automatically. 
+-- Update solr/collection1/conf/schema.xml (copy based on old version)
+- Update Server.java to use the new solr-VERSION path that the examples folder was opened into.
+
+
+Upgrading solrj:
+- solrj is configured with ivy.
+- Upgrade version needed in ivy.xml
+- Change the wrapped jar libraries in Netbeans to refer to the new jar file versions. 
+

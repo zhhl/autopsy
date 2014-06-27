@@ -159,11 +159,11 @@ public class Server {
     public enum CORE_EVT_STATES {
         STOPPED, STARTED
     };
-    private SolrServer solrServer;
-    private String instanceDirStr;     // Folder that has the 'conf' sub folder. 
-    private File jettyFolder;   // folder where start.jar is located
-    private ServerAction serverAction;
-    private String solrUrl; // URL to access SOLR, changes based on what port was used
+    private final SolrServer solrServer;
+    private final String instanceDirStr;     // Folder that has the 'conf' sub folder. 
+    private final File jettyFolder;   // folder where start.jar is located
+    private final ServerAction serverAction;
+    private final String solrUrl; // URL to access SOLR, changes based on what port was used
     
     private static Server instance;
 
@@ -181,8 +181,8 @@ public class Server {
     private Server() {
         initSettings();
 
-        this.solrUrl = "http://localhost:" + currentSolrServerPort + "/solr"; //NON-NLS
-        this.solrServer = new HttpSolrServer(solrUrl);
+        solrUrl = "http://localhost:" + currentSolrServerPort + "/solr"; //NON-NLS
+        solrServer = new HttpSolrServer(solrUrl);
         serverAction = new ServerAction();
         jettyFolder = InstalledFileLocator.getDefault().locate("solr-4.8.1", Server.class.getPackage().getName(), false); //NON-NLS
         instanceDirStr = jettyFolder.getAbsolutePath() + File.separator + "solr" + File.separator + "collection1"; //NON-NLS
@@ -844,6 +844,10 @@ public class Server {
             throw new KeywordSearchModuleException(
                     NbBundle.getMessage(this.getClass(), "Server.openCore.exception.cantOpen.msg2"), ex);
         }
+    }
+    
+    String getAdminUrl() {
+        return solrUrl + "/admin";
     }
 
     class Core {

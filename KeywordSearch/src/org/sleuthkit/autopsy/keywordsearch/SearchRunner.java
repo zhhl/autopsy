@@ -19,20 +19,22 @@
 
 package org.sleuthkit.autopsy.keywordsearch;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
-import java.util.Timer;
-import java.util.TimerTask;
 import org.netbeans.api.progress.aggregate.AggregateProgressFactory;
 import org.netbeans.api.progress.aggregate.AggregateProgressHandle;
 import org.netbeans.api.progress.aggregate.ProgressContributor;
@@ -56,6 +58,9 @@ public final class SearchRunner {
     private Ingester ingester = null;
     private volatile boolean updateTimerRunning = false;
     private Timer updateTimer;
+    private long lastSearchTime = 0;
+    private long nextSearchTime = 0;
+    private long searchTimerInterval;
     
     // maps a jobID to the search
     private Map<Long, SearchJobInfo> jobs = new HashMap<>(); //guarded by "this"
@@ -94,9 +99,11 @@ public final class SearchRunner {
         
         // start the timer, if needed
         if ((jobs.size() > 0) && (updateTimerRunning == false)) {
-            final int updateIntervalMs = KeywordSearchSettings.getUpdateFrequency().getTime() * 60 * 1000;
-            updateTimer.scheduleAtFixedRate(new UpdateTimerTask(), updateIntervalMs, updateIntervalMs);
+            searchTimerInterval = KeywordSearchSettings.getUpdateFrequency().getTime() * 60 * 1000;
+            updateTimer.scheduleAtFixedRate(new UpdateTimerTask(), searchTimerInterval, searchTimerInterval);
             updateTimerRunning = true;
+            nextSearchTime = System.currentTimeMillis() + searchTimerInterval;
+            lastSearchTime = 0;
         }
     }
     
@@ -119,12 +126,14 @@ public final class SearchRunner {
                 jobs.remove(jobId);
                 readyForFinalSearch = true;
             }
+
+            // Timer will shut itself down if there are no more jobs
         }                  
         
         if (readyForFinalSearch) {          
             commit();        
             doFinalSearch(job); //this will block until it's done
-        }
+        }   
     }
     
     
@@ -151,7 +160,14 @@ public final class SearchRunner {
             }            
             
             jobs.remove(jobId);
+            
+            // Timer will shut itself down if there are no more jobs
         }        
+    }
+    
+    
+    synchronized boolean hasJobs() {
+        return !jobs.isEmpty();
     }
     
     /**
@@ -208,6 +224,13 @@ public final class SearchRunner {
         }
     }
     
+    String getNextSearchTime() {
+        if (updateTimerRunning == false)
+            return "";
+        
+        DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+        return dateFormat.format(nextSearchTime);
+    }
    
     /**
      * Timer triggered re-search for each job (does a single index commit first)
@@ -223,6 +246,10 @@ public final class SearchRunner {
                 updateTimerRunning = false;
                 return;
             }
+            
+            // update internal counters
+            lastSearchTime = System.currentTimeMillis();
+            nextSearchTime = lastSearchTime + searchTimerInterval;
             
             commit();
 

@@ -102,7 +102,7 @@ public class KeywordSearchModuleFactory extends IngestModuleFactoryAdapter {
 
     @Override
     public IngestModuleGlobalSettingsPanel getGlobalSettingsPanel() {
-        KeywordSearchGlobalSettingsPanel globalSettingsPanel = new KeywordSearchGlobalSettingsPanel();
+        GlobalSettingsPanel globalSettingsPanel = new GlobalSettingsPanel();
         globalSettingsPanel.load();
         return globalSettingsPanel;
     }

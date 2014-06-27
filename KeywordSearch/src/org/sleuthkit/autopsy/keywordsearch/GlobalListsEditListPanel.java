@@ -48,16 +48,16 @@ import org.sleuthkit.autopsy.ingest.IngestManager.IngestJobEvent;
 /**
  * GlobalEditListPanel widget to manage keywords in lists
  */
-class GlobalEditListPanel extends javax.swing.JPanel implements ListSelectionListener, OptionsPanel {
+class GlobalListsEditListPanel extends javax.swing.JPanel implements ListSelectionListener, OptionsPanel {
 
-    private static Logger logger = Logger.getLogger(GlobalEditListPanel.class.getName());
+    private static Logger logger = Logger.getLogger(GlobalListsEditListPanel.class.getName());
     private KeywordTableModel tableModel;
     private KeywordList currentKeywordList;
 
     /**
      * Creates new form GlobalEditListPanel
      */
-    GlobalEditListPanel() {
+    GlobalListsEditListPanel() {
         tableModel = new KeywordTableModel();
         initComponents();
         customizeComponents();
@@ -145,31 +145,39 @@ class GlobalEditListPanel extends javax.swing.JPanel implements ListSelectionLis
     }
 
     void setButtonStates() {
-        boolean ingestRunning = IngestManager.getInstance().isIngestRunning();
-        boolean listSet = currentKeywordList != null;
-        boolean isLocked = !listSet ? true : currentKeywordList.isLocked();
-        boolean noKeywords = !listSet ? true : currentKeywordList.getKeywords().isEmpty();
-        addWordButton.setEnabled(listSet && !ingestRunning && !isLocked);
-        addWordField.setEnabled(listSet && !ingestRunning && !isLocked);
-        chRegex.setEnabled(listSet && ingestRunning && !isLocked);
-        keywordOptionsLabel.setEnabled(addWordButton.isEnabled() || chRegex.isEnabled());
-        keywordOptionsSeparator.setEnabled(addWordButton.isEnabled() || chRegex.isEnabled());
-        ingestMessagesCheckbox.setEnabled(listSet && !ingestRunning);
-        ingestMessagesCheckbox.setSelected(!listSet ? false : currentKeywordList.getIngestMessages());
-        listOptionsLabel.setEnabled(ingestMessagesCheckbox.isEnabled());
-        listOptionsSeparator.setEnabled(ingestMessagesCheckbox.isEnabled());
-        saveListButton.setEnabled(listSet);
-        exportButton.setEnabled(listSet);
-        deleteListButton.setEnabled(listSet && !ingestRunning && !isLocked);
-        deleteWordButton.setEnabled(listSet && !ingestRunning && !isLocked);
-        if (noKeywords) {
-            saveListButton.setEnabled(false);
-            exportButton.setEnabled(false);
-            deleteWordButton.setEnabled(false);
-        } else {
-            saveListButton.setEnabled(true);
-            exportButton.setEnabled(true);
+        boolean isIngestRunning = IngestManager.getInstance().isIngestRunning();
+        boolean isListSet = false;
+        boolean isListLocked = true; 
+        boolean isListEmpty = true;
+        
+        if (currentKeywordList != null) {
+            isListSet = true;
+            isListLocked = currentKeywordList.isLocked();
+            isListEmpty = currentKeywordList.getKeywords().isEmpty();
         }
+        
+        // actions that require write access to list contents
+        boolean enabled = isListSet && !isIngestRunning && !isListLocked;
+        addWordButton.setEnabled(enabled);
+        addWordField.setEnabled(enabled);
+        chRegex.setEnabled(enabled);
+        keywordOptionsLabel.setEnabled(enabled);
+        keywordOptionsSeparator.setEnabled(enabled);
+        deleteListButton.setEnabled(enabled);
+        deleteWordButton.setEnabled(enabled && !isListEmpty);
+        
+        // actions that require a list, but dont' change content
+        enabled = isListSet && !isIngestRunning;
+        ingestMessagesCheckbox.setEnabled(enabled);
+        listOptionsLabel.setEnabled(enabled);
+        listOptionsSeparator.setEnabled(enabled);
+        
+        // actions that only require a list to be selected
+        enabled = isListSet && !isListEmpty;
+        saveListButton.setEnabled(enabled);
+        exportButton.setEnabled(enabled);
+        
+        ingestMessagesCheckbox.setSelected(isListSet && currentKeywordList.getIngestMessages());
     }
 
     /**
@@ -204,16 +212,16 @@ class GlobalEditListPanel extends javax.swing.JPanel implements ListSelectionLis
         saveListButton = new javax.swing.JButton();
         exportButton = new javax.swing.JButton();
 
-        cutMenuItem.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.cutMenuItem.text")); // NOI18N
+        cutMenuItem.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.cutMenuItem.text")); // NOI18N
         rightClickMenu.add(cutMenuItem);
 
-        copyMenuItem.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.copyMenuItem.text")); // NOI18N
+        copyMenuItem.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.copyMenuItem.text")); // NOI18N
         rightClickMenu.add(copyMenuItem);
 
-        pasteMenuItem.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.pasteMenuItem.text")); // NOI18N
+        pasteMenuItem.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.pasteMenuItem.text")); // NOI18N
         rightClickMenu.add(pasteMenuItem);
 
-        selectAllMenuItem.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.selectAllMenuItem.text")); // NOI18N
+        selectAllMenuItem.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.selectAllMenuItem.text")); // NOI18N
         rightClickMenu.add(selectAllMenuItem);
 
         jScrollPane1.setPreferredSize(new java.awt.Dimension(340, 300));
@@ -225,23 +233,23 @@ class GlobalEditListPanel extends javax.swing.JPanel implements ListSelectionLis
         keywordTable.getTableHeader().setReorderingAllowed(false);
         jScrollPane1.setViewportView(keywordTable);
 
-        addWordButton.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.addWordButton.text")); // NOI18N
+        addWordButton.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.addWordButton.text")); // NOI18N
         addWordButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 addWordButtonActionPerformed(evt);
             }
         });
 
-        addWordField.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.addWordField.text")); // NOI18N
+        addWordField.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.addWordField.text")); // NOI18N
         addWordField.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 addWordFieldActionPerformed(evt);
             }
         });
 
-        chRegex.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.chRegex.text")); // NOI18N
+        chRegex.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.chRegex.text")); // NOI18N
 
-        deleteWordButton.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.deleteWordButton.text")); // NOI18N
+        deleteWordButton.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.deleteWordButton.text")); // NOI18N
         deleteWordButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 deleteWordButtonActionPerformed(evt);
@@ -277,28 +285,28 @@ class GlobalEditListPanel extends javax.swing.JPanel implements ListSelectionLis
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
-        ingestMessagesCheckbox.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.ingestMessagesCheckbox.text")); // NOI18N
-        ingestMessagesCheckbox.setToolTipText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.ingestMessagesCheckbox.toolTipText")); // NOI18N
+        ingestMessagesCheckbox.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.ingestMessagesCheckbox.text")); // NOI18N
+        ingestMessagesCheckbox.setToolTipText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.ingestMessagesCheckbox.toolTipText")); // NOI18N
         ingestMessagesCheckbox.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 ingestMessagesCheckboxActionPerformed(evt);
             }
         });
 
-        keywordsLabel.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.keywordsLabel.text")); // NOI18N
+        keywordsLabel.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.keywordsLabel.text")); // NOI18N
 
-        keywordOptionsLabel.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.keywordOptionsLabel.text")); // NOI18N
+        keywordOptionsLabel.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.keywordOptionsLabel.text")); // NOI18N
 
-        listOptionsLabel.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.listOptionsLabel.text")); // NOI18N
+        listOptionsLabel.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.listOptionsLabel.text")); // NOI18N
 
-        deleteListButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/sleuthkit/autopsy/keywordsearch/delete16.png"))); // NOI18N NON-NLS
-        deleteListButton.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.deleteListButton.text")); // NOI18N
+        deleteListButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/sleuthkit/autopsy/keywordsearch/delete16.png"))); // NOI18N
+        deleteListButton.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.deleteListButton.text")); // NOI18N
 
-        saveListButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/sleuthkit/autopsy/keywordsearch/save16.png"))); // NOI18N NON-NLS
-        saveListButton.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.saveListButton.text")); // NOI18N
+        saveListButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/sleuthkit/autopsy/keywordsearch/save16.png"))); // NOI18N
+        saveListButton.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.saveListButton.text")); // NOI18N
 
-        exportButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/sleuthkit/autopsy/keywordsearch/export16.png"))); // NOI18N NON-NLS
-        exportButton.setText(org.openide.util.NbBundle.getMessage(GlobalEditListPanel.class, "KeywordSearchEditListPanel.exportButton.text")); // NOI18N
+        exportButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/sleuthkit/autopsy/keywordsearch/export16.png"))); // NOI18N
+        exportButton.setText(org.openide.util.NbBundle.getMessage(GlobalListsEditListPanel.class, "KeywordSearchEditListPanel.exportButton.text")); // NOI18N
         exportButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 exportButtonActionPerformed(evt);

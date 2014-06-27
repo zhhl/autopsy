@@ -37,10 +37,10 @@ import org.sleuthkit.autopsy.coreutils.Logger;
         keywordsCategory = "KeywordSearchOptions")
 public final class KeywordSearchOptionsPanelController extends OptionsPanelController {
 
-    private KeywordSearchGlobalSettingsPanel panel;
+    private GlobalSettingsPanel panel;
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
     private boolean changed;
-    private static final Logger logger = Logger.getLogger(KeywordSearchGlobalSettingsPanel.class.getName());
+    private static final Logger logger = Logger.getLogger(GlobalSettingsPanel.class.getName());
 
     @Override
     public void update() {
@@ -89,9 +89,9 @@ public final class KeywordSearchOptionsPanelController extends OptionsPanelContr
         pcs.removePropertyChangeListener(l);
     }
 
-    private KeywordSearchGlobalSettingsPanel getPanel() {
+    private GlobalSettingsPanel getPanel() {
         if (panel == null) {
-            panel = new KeywordSearchGlobalSettingsPanel();
+            panel = new GlobalSettingsPanel();
         }
         return panel;
     }

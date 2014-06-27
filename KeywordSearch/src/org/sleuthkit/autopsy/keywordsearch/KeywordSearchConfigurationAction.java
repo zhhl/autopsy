@@ -33,11 +33,11 @@ import org.sleuthkit.autopsy.corecomponents.AdvancedConfigurationDialog;
 class KeywordSearchConfigurationAction extends CallableSystemAction{
     
     private static final String ACTION_NAME = org.openide.util.NbBundle.getMessage(DropdownToolbar.class, "ListBundleConfig");
-    private KeywordSearchGlobalSettingsPanel panel;
+    private GlobalSettingsPanel panel;
 
     @Override
     public void performAction() {
-        final KeywordSearchGlobalSettingsPanel panel = getPanel();
+        final GlobalSettingsPanel panel = getPanel();
         panel.load();
         final AdvancedConfigurationDialog dialog = new AdvancedConfigurationDialog();
         dialog.addApplyButtonListener(new ActionListener() {
@@ -60,9 +60,9 @@ class KeywordSearchConfigurationAction extends CallableSystemAction{
         dialog.display(panel);
     }
     
-    private KeywordSearchGlobalSettingsPanel getPanel() {
+    private GlobalSettingsPanel getPanel() {
         if(panel==null) {
-            panel = new KeywordSearchGlobalSettingsPanel();
+            panel = new GlobalSettingsPanel();
         }
         return panel;
     }

@@ -25,13 +25,13 @@ import org.sleuthkit.autopsy.ingest.IngestModuleGlobalSettingsPanel;
 /**
  * Global options panel for keyword searching.
  */
-final class KeywordSearchGlobalSettingsPanel extends IngestModuleGlobalSettingsPanel implements OptionsPanel {
+final class GlobalSettingsPanel extends IngestModuleGlobalSettingsPanel implements OptionsPanel {
 
     private GlobalListSettingsPanel listsPanel;
-    private KeywordSearchGlobalLanguageSettingsPanel languagesPanel;
-    private KeywordSearchGlobalSearchSettingsPanel generalPanel;
+    private GlobalLanguageSettingsPanel languagesPanel;
+    private GlobalGeneralSettingsPanel generalPanel;
 
-    public KeywordSearchGlobalSettingsPanel() {
+    public GlobalSettingsPanel() {
         initComponents();
         customizeComponents();
     }
@@ -39,8 +39,8 @@ final class KeywordSearchGlobalSettingsPanel extends IngestModuleGlobalSettingsP
     private void customizeComponents() {
         setName(NbBundle.getMessage(this.getClass(), "KeywordSearchConfigurationPanel.customizeComponents.title"));
         listsPanel = new GlobalListSettingsPanel();
-        languagesPanel = new KeywordSearchGlobalLanguageSettingsPanel();
-        generalPanel = new KeywordSearchGlobalSearchSettingsPanel();
+        languagesPanel = new GlobalLanguageSettingsPanel();
+        generalPanel = new GlobalGeneralSettingsPanel();
         tabbedPane.insertTab(NbBundle.getMessage(this.getClass(), "KeywordSearchConfigurationPanel.customizeComponents.listTabTitle"), null,
                 listsPanel, NbBundle.getMessage(this.getClass(), "KeywordSearchConfigurationPanel.customizeComponents.listLabToolTip"), 0);
         tabbedPane.insertTab(NbBundle.getMessage(this.getClass(), "KeywordSearchConfigurationPanel.customizeComponents.stringExtTitle"), null,
@@ -75,7 +75,6 @@ final class KeywordSearchGlobalSettingsPanel extends IngestModuleGlobalSettingsP
     public void load() {
         // This calls actually clears the component.
         listsPanel.load();
-
         languagesPanel.load();
         generalPanel.load();
 

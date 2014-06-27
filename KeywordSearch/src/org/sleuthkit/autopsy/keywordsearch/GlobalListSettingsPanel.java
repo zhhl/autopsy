@@ -28,7 +28,7 @@ import org.sleuthkit.autopsy.corecomponents.OptionsPanel;
 final class GlobalListSettingsPanel extends javax.swing.JPanel implements OptionsPanel {
 
     private final GlobalListsManagementPanel listsManagementPanel = new GlobalListsManagementPanel();
-    private final GlobalEditListPanel editListPanel = new GlobalEditListPanel();
+    private final GlobalListsEditListPanel editListPanel = new GlobalListsEditListPanel();
 
     GlobalListSettingsPanel() {
         initComponents();
@@ -131,6 +131,7 @@ final class GlobalListSettingsPanel extends javax.swing.JPanel implements Option
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        jScrollPane2 = new javax.swing.JScrollPane();
         mainSplitPane = new javax.swing.JSplitPane();
         leftPanel = new javax.swing.JPanel();
         rightPanel = new javax.swing.JPanel();
@@ -157,7 +158,7 @@ final class GlobalListSettingsPanel extends javax.swing.JPanel implements Option
         rightPanel.setLayout(rightPanelLayout);
         rightPanelLayout.setHorizontalGroup(
             rightPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 385, Short.MAX_VALUE)
+            .addGap(0, 366, Short.MAX_VALUE)
         );
         rightPanelLayout.setVerticalGroup(
             rightPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -166,18 +167,21 @@ final class GlobalListSettingsPanel extends javax.swing.JPanel implements Option
 
         mainSplitPane.setRightComponent(rightPanel);
 
+        jScrollPane2.setViewportView(mainSplitPane);
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(mainSplitPane, javax.swing.GroupLayout.DEFAULT_SIZE, 665, Short.MAX_VALUE)
+            .addComponent(jScrollPane2, javax.swing.GroupLayout.Alignment.TRAILING)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(mainSplitPane)
+            .addComponent(jScrollPane2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 327, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JPanel leftPanel;
     private javax.swing.JSplitPane mainSplitPane;
     private javax.swing.JPanel rightPanel;
