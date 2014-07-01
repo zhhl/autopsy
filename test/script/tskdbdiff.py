@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import re
 import sqlite3
 import subprocess
@@ -6,6 +8,7 @@ import os
 import codecs
 import datetime
 import sys
+import tempfile
 
 class TskDbDiff(object):
     """Represents the differences between the gold and output databases.
@@ -124,6 +127,7 @@ class TskDbDiff(object):
         else:
             return True
 
+    @staticmethod
     def _dump_output_db_bb(db_file, bb_dump_file):
         """Dumps sorted text results to the given output location.
 
@@ -221,6 +225,7 @@ class TskDbDiff(object):
         srtcmdlst = ["sort", unsorted_dump, "-o", bb_dump_file]
         subprocess.call(srtcmdlst)
 
+    @staticmethod
     def _dump_output_db_nonbb(db_file, dump_file):
         """Dumps a database to a text file.
 
@@ -253,6 +258,7 @@ class TskDbDiff(object):
         # cleanup the backup
         os.remove(backup_db_file)
 
+    @staticmethod
     def dump_output_db(db_file, dump_file, bb_dump_file):
         """Dumps the given database to text files for later comparison.
 
@@ -264,9 +270,11 @@ class TskDbDiff(object):
         TskDbDiff._dump_output_db_nonbb(db_file, dump_file)
         TskDbDiff._dump_output_db_bb(db_file, bb_dump_file)
 
+    @staticmethod
     def _get_tmp_file(base, ext):
+        """ return path to temp file named based on passed in name """
         time = datetime.datetime.now().time().strftime("%H%M%f")
-        return os.path.join(os.environ['TMP'], base + time + ext)
+        return os.path.join(tempfile.gettempdir(), base + time + ext)
 
 
 class TskDbDiffException(Exception):
@@ -345,14 +353,18 @@ def main():
     db_diff = TskDbDiff(output_db, gold_db, output_dir=".") 
     dump_passed, bb_dump_passed = db_diff.run_diff()
 
+    retval = 0
     if dump_passed and bb_dump_passed:
         print("Database comparison passed.")
     if not dump_passed:
         print("Non blackboard database comparison failed.")
+        retval = 1
     if not bb_dump_passed:
         print("Blackboard database comparison failed.")
+        retval = 1
+    print("Results stored in current directory")
 
-    return 0
+    return retval
 
 
 if __name__ == "__main__":
