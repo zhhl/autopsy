@@ -46,11 +46,11 @@ import org.sleuthkit.datamodel.BlackboardAttribute;
 class QueryResults {
     private static final Logger logger = Logger.getLogger(QueryResults.class.getName());
    
-    private KeywordSearchQuery keywordSearchQuery;
+    private final KeywordSearchQuery keywordSearchQuery;
     
     // maps Keyword object to its hits
-    private Map<Keyword, List<ContentHit>> results = new HashMap<>();
-    private KeywordList keywordList;
+    private final Map<Keyword, List<ContentHit>> results = new HashMap<>();
+    private final KeywordList keywordList;
     
     QueryResults (KeywordSearchQuery query, KeywordList keywordList) {
         this.keywordSearchQuery = query;

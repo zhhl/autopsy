@@ -54,6 +54,7 @@ class HighlightedTextMarkup implements TextMarkup, TextMarkupLookup {
     private boolean isRegex = false;
     private boolean group = true;
     private boolean hasChunks = false;
+    
     //stores all pages/chunks that have hits as key, and number of hits as a value, or 0 if yet unknown
     private LinkedHashMap<Integer, Integer> hitsPages;
     //stored page num -> current hit number mapping
@@ -67,7 +68,7 @@ class HighlightedTextMarkup implements TextMarkup, TextMarkupLookup {
     HighlightedTextMarkup(Content content, String keywordHitQuery, boolean isRegex) {
         this.content = content;
         this.keywordHitQuery = keywordHitQuery;
-        this.isRegex = isRegex;
+        this.isRegex = false; //isRegex;
         this.group = true;
         this.hitsPages = new LinkedHashMap<>();
         this.pages = new ArrayList<>();
@@ -113,14 +114,11 @@ class HighlightedTextMarkup implements TextMarkup, TextMarkupLookup {
             return;
         }
 
-        if (this.numberPages == 0) {
-            hasChunks = false;
-        } else {
-            hasChunks = true;
-        }
 
         //if has chunks, get pages with hits
-        if (hasChunks) {
+        if (this.numberPages != 0) {
+            hasChunks = true;
+            
             //extract pages of interest, sorted
             final long contentId = content.getId();
 
@@ -132,6 +130,7 @@ class HighlightedTextMarkup implements TextMarkup, TextMarkupLookup {
                 if (isRegex) {
                     //use white-space sep. field to get exact matches only of regex query result
                     queryStr = Server.Schema.CONTENT_WS + ":" + "\"" + queryStr + "\"";
+                    // @@@ I feel like this should be using TEXT....
                 }
                 
                 Keyword keywordQuery = new Keyword(queryStr, !isRegex);
@@ -173,9 +172,9 @@ class HighlightedTextMarkup implements TextMarkup, TextMarkupLookup {
             }
 
         } else {
-            //no chunks
-            this.numberPages = 1;
-            this.currentPage = 1;
+            hasChunks = false;
+            numberPages = 1;
+            currentPage = 1;
             hitsPages.put(1, 0);
             pages.add(1);
             pagesToHits.put(1, 0);
@@ -376,7 +375,7 @@ class HighlightedTextMarkup implements TextMarkup, TextMarkupLookup {
                 highlightedContent = insertAnchors(highlightedContent);
 
 
-                return "<html><pre>" + highlightedContent + "</pre></html>"; //NON-NLS
+                return "<pre>" + highlightedContent + "</pre>"; //NON-NLS
             }
         } catch (NoOpenCoreException ex) {
             logger.log(Level.WARNING, "Couldn't query markup for page: " + currentPage, ex); //NON-NLS

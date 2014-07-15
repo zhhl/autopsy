@@ -54,7 +54,6 @@ class TermComponentQuery implements KeywordSearchQuery {
     private final KeywordList keywordList;
     private final Keyword keyword;
     private boolean isEscaped;
-    private List<Term> terms;
     private final List<KeywordQueryFilter> filters = new ArrayList<>();
     private String field;
     private static final int MAX_TERMS_RESULTS = 20000;
@@ -67,7 +66,6 @@ class TermComponentQuery implements KeywordSearchQuery {
         this.keywordList = keywordList;
         this.queryEscaped = keyword.getQuery();
         isEscaped = false;
-        terms = null;
     }
 
     @Override
@@ -117,43 +115,8 @@ class TermComponentQuery implements KeywordSearchQuery {
     public boolean isLiteral() {
         return false;
     }
-
-    /*
-     * helper method to create a Solr terms component query
-     */
-    protected SolrQuery createQuery() {
-        final SolrQuery q = new SolrQuery();
-        q.setRequestHandler(TERMS_HANDLER);
-        q.setTerms(true);
-        q.setTermsLimit(TERMS_UNLIMITED);
-        q.setTermsRegexFlag("case_insensitive"); //NON-NLS
-        //q.setTermsLimit(200);
-        //q.setTermsRegexFlag(regexFlag);
-        //q.setTermsRaw(true);
-        q.setTermsRegex(queryEscaped);
-        q.addTermsField(TERMS_SEARCH_FIELD);
-        q.setTimeAllowed(TERMS_TIMEOUT);
-
-        return q;
-
-    }
-
-    /*
-     * execute query and return terms, helper method
-     */
-    protected List<Term> executeQuery(SolrQuery q) throws NoOpenCoreException {
-        try {
-            Server solrServer = KeywordSearch.getServer();
-            TermsResponse tr = solrServer.queryTerms(q);
-            List<Term> termsCol = tr.getTerms(TERMS_SEARCH_FIELD);
-            return termsCol;
-        } catch (KeywordSearchModuleException ex) {
-            logger.log(Level.WARNING, "Error executing the regex terms query: " + keyword.getQuery(), ex); //NON-NLS
-            return null;  //no need to create result view, just display error dialog
-        }
-    }
-
-    @Override
+    
+        @Override
     public String getEscapedQueryString() {
         return this.queryEscaped;
     }
@@ -164,6 +127,7 @@ class TermComponentQuery implements KeywordSearchQuery {
     }
 
     
+
 
     @Override
     public KeywordCachedArtifact writeSingleFileHitsToBlackBoard(String termHit, AbstractFile newFsHit, String snippet, String listName) {
@@ -205,19 +169,55 @@ class TermComponentQuery implements KeywordSearchQuery {
 
         return null;
     }
+    
+    /*
+     * helper method to create a Solr terms component query
+     */
+    private SolrQuery createQuery() {
+        final SolrQuery q = new SolrQuery();
+        q.setRequestHandler(TERMS_HANDLER);
+        q.setTerms(true);
+        q.setTermsLimit(TERMS_UNLIMITED);
+        q.setTermsRegexFlag("case_insensitive"); //NON-NLS
+        //q.setTermsLimit(200);
+        //q.setTermsRegexFlag(regexFlag);
+        //q.setTermsRaw(true);
+        q.setTermsRegex(queryEscaped);
+        q.addTermsField(TERMS_SEARCH_FIELD);
+        q.setTimeAllowed(TERMS_TIMEOUT);
+
+        return q;
+    }
+
+    /*
+     * execute query and return terms, helper method
+     */
+    private List<Term> executeQuery(SolrQuery q) throws NoOpenCoreException {
+        try {
+            Server solrServer = KeywordSearch.getServer();
+            TermsResponse tr = solrServer.queryTerms(q);
+            List<Term> termsCol = tr.getTerms(TERMS_SEARCH_FIELD);
+            return termsCol;
+        } catch (KeywordSearchModuleException ex) {
+            logger.log(Level.WARNING, "Error executing the regex terms query: " + keyword.getQuery(), ex); //NON-NLS
+            return null;  //no need to create result view, just display error dialog
+        }
+    }
 
     @Override
     public QueryResults performQuery() throws NoOpenCoreException {
         
+        // get the terms from the index that match the regexp
         final SolrQuery q = createQuery();
         q.setShowDebugInfo(DEBUG);
         q.setTermsLimit(MAX_TERMS_RESULTS); 
         logger.log(Level.INFO, "Query: {0}", q.toString()); //NON-NLS
-        terms = executeQuery(q);
+        List<Term> terms = executeQuery(q);
 
         QueryResults results = new QueryResults(this, keywordList);
         int resultSize = 0;
         
+        // do a literal search for each of the terms
         for (Term term : terms) {
             final String termStr = KeywordSearchUtil.escapeLuceneQuery(term.getTerm());
             
@@ -238,14 +238,14 @@ class TermComponentQuery implements KeywordSearchQuery {
                     resultSize += keyRes.size();
                     filesResults.addAll(keyRes);
                 }
-                results.addResult(new Keyword(term.getTerm(), false), new ArrayList<>(filesResults));
+                
+                results.addResult(new Keyword(term.getTerm(), true), new ArrayList<>(filesResults));
             } catch (NoOpenCoreException e) {
                 logger.log(Level.WARNING, "Error executing Solr query,", e); //NON-NLS
                 throw e;
             } catch (RuntimeException e) {
                 logger.log(Level.WARNING, "Error executing Solr query,", e); //NON-NLS
             }
-
         }
         
         //TODO limit how many results we store, not to hit memory limits

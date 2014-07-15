@@ -125,7 +125,7 @@ class KeywordSearchResultFactory extends ChildFactory<KeyValueQueryContent> {
     }
 
     @Override
-    protected boolean createKeys(List<KeyValueQueryContent> toPopulate) {
+    protected boolean createKeys(List<KeyValueQueryContent> keys) {
 
         for (QueryRequest queryRequest : queryRequests) {
             Map<String, Object> map = queryRequest.getProperties();
@@ -133,7 +133,7 @@ class KeywordSearchResultFactory extends ChildFactory<KeyValueQueryContent> {
             final String query = queryRequest.getQueryString();
             setCommonProperty(map, CommonPropertyTypes.KEYWORD, query);
             setCommonProperty(map, CommonPropertyTypes.REGEX, Boolean.valueOf(!queryRequest.getQuery().isLiteral()));
-            createFlatKeys(queryRequest, toPopulate);
+            createFlatKeys(queryRequest, keys);
         }
 
         return true;
@@ -142,12 +142,13 @@ class KeywordSearchResultFactory extends ChildFactory<KeyValueQueryContent> {
     
 
     /**
-     *
-     * @param queryRequest
-     * @param toPopulate
-     * @return
+     * Performs the search and populates the keys as results are found. 
+     * 
+     * @param queryRequest Query to perform
+     * @param keys List of objects to populate with results
+     * @return false on error
      */
-    protected boolean createFlatKeys(QueryRequest queryRequest, List<KeyValueQueryContent> toPopulate) {
+    protected boolean createFlatKeys(QueryRequest queryRequest, List<KeyValueQueryContent> keys) {
         final KeywordSearchQuery keywordSearchQuery = queryRequest.getQuery();
 
         if (!keywordSearchQuery.validate()) {
@@ -164,7 +165,6 @@ class KeywordSearchResultFactory extends ChildFactory<KeyValueQueryContent> {
             return false;
         }
 
-        
         String listName = queryRequest.getQuery().getKeywordList().getName();
         
         final boolean literal_query = keywordSearchQuery.isLiteral();
@@ -192,94 +192,73 @@ class KeywordSearchResultFactory extends ChildFactory<KeyValueQueryContent> {
                 setCommonProperty(resMap, CommonPropertyTypes.CONTEXT, chit.getSnippet());
             }
             
-//            boolean hitFound = false;
-//            for (String hitKey : queryResults.getKeywords()) {
-//                for (ContentHit contentHit : queryResults.getResults(hitKey)) {
-//                    if (contentHit.getContent().equals(f)) {
-//                        hitFound = true;
-//                        if (contentHit.hasSnippet() && (KeywordSearchUtil.escapeLuceneQuery(hitKey) != null)) {
-//                            setCommonProperty(resMap, CommonPropertyTypes.CONTEXT, contentHit.getSnippet());
-//                        }
-//                        break;
-//                    }
-//                }
-//                if (hitFound) {
-//                    break;
-//                }
-//            }
             if (f.getType() == TSK_DB_FILES_TYPE_ENUM.FS) {
                 AbstractFsContentNode.fillPropertyMap(resMap, (FsContent) f);
             }
+            
+            // get the string we'll later use to make the highlighted text
             final String highlightQueryEscaped = getHighlightQuery(keywordSearchQuery, literal_query, queryResults, f);
-            tempList.add(new KeyValueQueryContent(f.getName(), resMap, ++resID, f, highlightQueryEscaped, keywordSearchQuery, queryResults));
+            
+            KeyValueQueryContent kvqc = new KeyValueQueryContent(f.getName(), resMap, ++resID, f, highlightQueryEscaped, keywordSearchQuery, queryResults);
+            //tempList.add(kvqc);
+            keys.add(kvqc);
         }
 
         // Add all the nodes to toPopulate at once. Minimizes node creation
         // EDT threads, which can slow and/or hang the UI on large queries.
-        toPopulate.addAll(tempList);
+        //keys.addAll(tempList);
 
-        //write to bb
-        //cannot reuse snippet in BlackboardResultWriter
-        //because for regex searches in UI we compress results by showing a file per regex once (even if multiple term hits)
-        //whereas in bb we write every hit per file separately
+        // write to bb
+        // cannot reuse snippet in BlackboardResultWriter
+        // because those were done for the UI display, which shows a file once for all of its hits.  But for BB, we want an entry for each 
+        // unique hit. 
         new BlackboardResultWriter(queryResults, listName).execute();
 
         return true;
     }
 
     /**
-     * Return the string used to later have SOLR highlight the document with.
+     * Return the string that can be later used to have SOLR highlight the given document with all
+     * of the relevant keywords highlighted. 
      *
-     * @param query
-     * @param literal_query
-     * @param queryResults
-     * @param f
+     * @param query Original query used
+     * @param literal_query True if it was a literal search
+     * @param queryResults Results from query
+     * @param f File that had a hit from the previous query that this string should reference. 
      * @return
      */
     private String getHighlightQuery(KeywordSearchQuery query, boolean literal_query, QueryResults queryResults, AbstractFile f) {
         String highlightQueryEscaped;
+        
         if (literal_query) {
             //literal, treat as non-regex, non-term component query
             highlightQueryEscaped = query.getQueryString();
         } else {
-            //construct a Solr query using aggregated terms to get highlighting
-            //the query is executed later on demand
+            // construct an OR-based query based on all of the terms that were 
+            // found for the given file. 
+
             StringBuilder highlightQuery = new StringBuilder();
 
-            if (queryResults.getKeywords().size() == 1) {
-                //simple case, no need to process subqueries and do special escaping
-                Keyword term = queryResults.getKeywords().iterator().next();
-                highlightQuery.append(term.toString());
-            } else {
-                //find terms for this file hit
-                List<String> hitTerms = new ArrayList<>();
-                for (Keyword term : queryResults.getKeywords()) {
-                    List<ContentHit> hitList = queryResults.getResults(term);
+            // we need to find the subset of the words that this file has
+            // find terms in the total set that this file was part of
+            for (Keyword term : queryResults.getKeywords()) {
+                for (ContentHit h : queryResults.getResults(term)) {
+                    if (h.getContent().equals(f)) {
 
-                    for (ContentHit h : hitList) {
-                        if (h.getContent().equals(f)) {
-                            hitTerms.add(term.toString());
-                            break; //go to next term
+                        if (highlightQuery.length() != 0) {
+                            highlightQuery.append(" "); //acts as OR ||
+                            //force HIGHLIGHT_FIELD_REGEX index and stored content
+                            //in each term after first. First term taken care by HighlightedMatchesSource
+                            highlightQuery.append(LuceneQuery.HIGHLIGHT_FIELD_REGEX).append(":");
                         }
-                    }
-                }
 
-                final int lastTerm = hitTerms.size() - 1;
-                int curTerm = 0;
-                for (String term : hitTerms) {
-                    //escape subqueries, they shouldn't be escaped again later
-                    final String termS = KeywordSearchUtil.escapeLuceneQuery(term);
-                    highlightQuery.append("\"");
-                    highlightQuery.append(termS);
-                    highlightQuery.append("\"");
-                    if (lastTerm != curTerm) {
-                        highlightQuery.append(" "); //acts as OR ||
-                        //force HIGHLIGHT_FIELD_REGEX index and stored content
-                        //in each term after first. First term taken care by HighlightedMatchesSource
-                        highlightQuery.append(LuceneQuery.HIGHLIGHT_FIELD_REGEX).append(":");
+                        //escape subqueries, they shouldn't be escaped again later
+                        final String termS = KeywordSearchUtil.escapeLuceneQuery(term.toString());
+                        highlightQuery.append("\"");
+                        highlightQuery.append(termS);
+                        highlightQuery.append("\"");
+                        break; 
                     }
-
-                    ++curTerm;
                 }
             }
             //String highlightQueryEscaped = KeywordSearchUtil.escapeLuceneQuery(highlightQuery.toString());
@@ -367,12 +346,12 @@ class KeywordSearchResultFactory extends ChildFactory<KeyValueQueryContent> {
         private ProgressHandle progress;
         private KeywordSearchQuery query;
         private String listName;
-        private QueryResults hits;
+        private QueryResults queryResults;
         private Collection<BlackboardArtifact> newArtifacts = new ArrayList<>();
         private static final int QUERY_DISPLAY_LEN = 40;   
 
         BlackboardResultWriter(QueryResults hits, String listName) {
-            this.hits = hits;
+            this.queryResults = hits;
             this.query = hits.getQuery();
             this.listName = listName;
         }
@@ -406,7 +385,7 @@ class KeywordSearchResultFactory extends ChildFactory<KeyValueQueryContent> {
                     });                
                 
                 // Create blackboard artifacts
-                newArtifacts = hits.writeAllHitsToBlackBoard(progress, null, this, false);
+                newArtifacts = queryResults.writeAllHitsToBlackBoard(progress, null, this, false);
             } finally {
                 finalizeWorker();
             }
