@@ -390,6 +390,12 @@ final class IngestTasksScheduler {
         if (fileName.equals(".") || fileName.equals("..")) {
             return false;
         }
+        
+        if (file.isFile()) {
+            IngestFileFilter fileFilter = task.getIngestJob().getIngestFileFilter();
+            if (fileFilter != null && fileFilter.match(file) == false)
+                return false;
+        }
 
         // Skip the task if the file is one of a select group of special, large
         // NTFS or FAT file system files.

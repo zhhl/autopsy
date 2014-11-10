@@ -157,6 +157,16 @@ public class IngestManager {
         Future<Void> task = startIngestJobsThreadPool.submit(new StartIngestJobsCallable(taskId, dataSources, moduleTemplates, processUnallocatedSpace));
         startIngestJobsTasks.put(taskId, task);
     }
+    
+    synchronized void startIngestJobs(final List<Content> dataSources, final List<IngestModuleTemplate> moduleTemplates, boolean processUnallocatedSpace, IngestFileFilter fileFilter) {
+        if (!isIngestRunning()) {
+            clearIngestMessageBox();
+        }
+
+        long taskId = nextThreadId.incrementAndGet();
+        Future<Void> task = startIngestJobsThreadPool.submit(new StartIngestJobsCallable(taskId, dataSources, moduleTemplates, processUnallocatedSpace, fileFilter));
+        startIngestJobsTasks.put(taskId, task);
+    }
 
     private void subscribeToCaseEvents() {
         Case.addPropertyChangeListener(new PropertyChangeListener() {
@@ -522,12 +532,22 @@ public class IngestManager {
         private final List<IngestModuleTemplate> moduleTemplates;
         private final boolean processUnallocatedSpace;
         private ProgressHandle progress;
+        private final IngestFileFilter fileFilter;
 
         StartIngestJobsCallable(long threadId, List<Content> dataSources, List<IngestModuleTemplate> moduleTemplates, boolean processUnallocatedSpace) {
             this.threadId = threadId;
             this.dataSources = dataSources;
             this.moduleTemplates = moduleTemplates;
             this.processUnallocatedSpace = processUnallocatedSpace;
+            fileFilter = null;
+        }
+        
+        StartIngestJobsCallable(long threadId, List<Content> dataSources, List<IngestModuleTemplate> moduleTemplates, boolean processUnallocatedSpace, IngestFileFilter fileFilter) {
+            this.threadId = threadId;
+            this.dataSources = dataSources;
+            this.moduleTemplates = moduleTemplates;
+            this.processUnallocatedSpace = processUnallocatedSpace;
+            this.fileFilter = fileFilter;
         }
 
         @Override
@@ -561,7 +581,7 @@ public class IngestManager {
                     }
 
                     // Start an ingest job for the data source.
-                    List<IngestModuleError> errors = IngestJob.startJob(dataSource, moduleTemplates, processUnallocatedSpace);
+                    List<IngestModuleError> errors = IngestJob.startJob(dataSource, moduleTemplates, processUnallocatedSpace, fileFilter);
                     if (!errors.isEmpty()) {
                         // Report the errors to the user. They have already been logged.
                         StringBuilder moduleStartUpErrors = new StringBuilder();

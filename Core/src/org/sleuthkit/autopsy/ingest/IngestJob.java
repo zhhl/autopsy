@@ -71,6 +71,7 @@ final class IngestJob {
     private DataSourceIngestPipeline secondStageDataSourceIngestPipeline;
     private DataSourceIngestPipeline currentDataSourceIngestPipeline;
     private final LinkedBlockingQueue<FileIngestPipeline> fileIngestPipelines;
+    private final IngestFileFilter fileFilter;
 
     /**
      * An ingest runs in stages.
@@ -147,11 +148,11 @@ final class IngestJob {
      * processing of unallocated space.
      * @return A collection of ingest module start up errors, empty on success.
      */
-    static List<IngestModuleError> startJob(Content dataSource, List<IngestModuleTemplate> ingestModuleTemplates, boolean processUnallocatedSpace) {
+    static List<IngestModuleError> startJob(Content dataSource, List<IngestModuleTemplate> ingestModuleTemplates, boolean processUnallocatedSpace, IngestFileFilter fileFilter) {
         List<IngestModuleError> errors = new ArrayList<>();
         if (IngestJob.jobCreationIsEnabled) {
             long jobId = nextJobId.incrementAndGet();
-            IngestJob job = new IngestJob(jobId, dataSource, processUnallocatedSpace);
+            IngestJob job = new IngestJob(jobId, dataSource, processUnallocatedSpace, fileFilter);
             IngestJob.jobsById.put(jobId, job);
             errors = job.start(ingestModuleTemplates);
             if (errors.isEmpty() && job.hasIngestPipeline()) {
@@ -203,7 +204,7 @@ final class IngestJob {
      * @param processUnallocatedSpace Whether or not unallocated space should be
      * processed during the ingest job.
      */
-    private IngestJob(long id, Content dataSource, boolean processUnallocatedSpace) {
+    private IngestJob(long id, Content dataSource, boolean processUnallocatedSpace, IngestFileFilter fileFilter) {
         this.id = id;
         this.dataSource = dataSource;
         this.processUnallocatedSpace = processUnallocatedSpace;
@@ -215,6 +216,7 @@ final class IngestJob {
         this.stage = IngestJob.Stages.INITIALIZATION;
         this.stageCompletionCheckLock = new Object();
         this.startTime = new Date().getTime();
+        this.fileFilter = fileFilter;
     }
 
     /**
@@ -992,6 +994,11 @@ final class IngestJob {
         return new IngestJobSnapshot();
 
     }
+    
+    IngestFileFilter getIngestFileFilter() {
+        return fileFilter;
+    }
+
 
     /**
      * Stores basic diagnostic statistics for an ingest job.

@@ -25,6 +25,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.JFrame;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
@@ -43,6 +44,7 @@ class IngestJobConfigurationPanel extends javax.swing.JPanel {
     private List<IngestModuleModel> modules = new ArrayList<>();
     private boolean processUnallocatedSpace = false;
     private IngestModuleModel selectedModule = null;
+    private IngestFileFilter fileFilter = null;
 
     IngestJobConfigurationPanel(List<IngestModuleTemplate> moduleTemplates, boolean processUnallocatedSpace) {
         for (IngestModuleTemplate moduleTemplate : moduleTemplates) {
@@ -68,6 +70,14 @@ class IngestJobConfigurationPanel extends javax.swing.JPanel {
 
     boolean getProcessUnallocSpace() {
         return processUnallocCheckbox.isSelected();
+    }
+    
+    /**
+     * Can be null
+     * @return 
+     */
+    IngestFileFilter getIngestFileFilter() {
+        return fileFilter;
     }
 
     private void customizeComponents() {
@@ -136,6 +146,7 @@ class IngestJobConfigurationPanel extends javax.swing.JPanel {
         simplePanel = new javax.swing.JPanel();
         processUnallocPanel = new javax.swing.JPanel();
         processUnallocCheckbox = new javax.swing.JCheckBox();
+        filterButton = new javax.swing.JButton();
 
         setMaximumSize(new java.awt.Dimension(5750, 3000));
         setMinimumSize(new java.awt.Dimension(522, 257));
@@ -216,6 +227,13 @@ class IngestJobConfigurationPanel extends javax.swing.JPanel {
             }
         });
 
+        filterButton.setText(org.openide.util.NbBundle.getMessage(IngestJobConfigurationPanel.class, "IngestJobConfigurationPanel.filterButton.text")); // NOI18N
+        filterButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                filterButtonActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout processUnallocPanelLayout = new javax.swing.GroupLayout(processUnallocPanel);
         processUnallocPanel.setLayout(processUnallocPanelLayout);
         processUnallocPanelLayout.setHorizontalGroup(
@@ -223,13 +241,17 @@ class IngestJobConfigurationPanel extends javax.swing.JPanel {
             .addGroup(processUnallocPanelLayout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(processUnallocCheckbox)
-                .addContainerGap(60, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(filterButton)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         processUnallocPanelLayout.setVerticalGroup(
             processUnallocPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(processUnallocPanelLayout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(processUnallocCheckbox)
+                .addGroup(processUnallocPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(processUnallocCheckbox)
+                    .addComponent(filterButton))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
@@ -287,9 +309,17 @@ class IngestJobConfigurationPanel extends javax.swing.JPanel {
         dialog.display(selectedModule.getGlobalSettingsPanel());
     }//GEN-LAST:event_advancedButtonActionPerformed
 
+    private void filterButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_filterButtonActionPerformed
+        // TODO add your handling code here:
+        FileFilterDialog dialog = new FileFilterDialog(new JFrame(), true);
+        dialog.setVisible(true);
+        fileFilter = dialog.getFileFilter();
+    }//GEN-LAST:event_filterButtonActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton advancedButton;
     private javax.swing.JLabel descriptionLabel;
+    private javax.swing.JButton filterButton;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JSeparator jSeparator2;
