@@ -56,6 +56,11 @@ public class FileFilterDialog extends javax.swing.JDialog {
 
         buttonGroup1.add(jpegsRadio);
         org.openide.awt.Mnemonics.setLocalizedText(jpegsRadio, org.openide.util.NbBundle.getMessage(FileFilterDialog.class, "FileFilterDialog.jpegsRadio.text")); // NOI18N
+        jpegsRadio.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jpegsRadioActionPerformed(evt);
+            }
+        });
 
         buttonGroup1.add(userRadio);
         org.openide.awt.Mnemonics.setLocalizedText(userRadio, org.openide.util.NbBundle.getMessage(FileFilterDialog.class, "FileFilterDialog.userRadio.text")); // NOI18N
@@ -78,7 +83,7 @@ public class FileFilterDialog extends javax.swing.JDialog {
                     .addComponent(jpegsRadio)
                     .addComponent(userRadio)
                     .addComponent(jButton1))
-                .addContainerGap(146, Short.MAX_VALUE))
+                .addContainerGap(86, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -109,6 +114,12 @@ public class FileFilterDialog extends javax.swing.JDialog {
        else if (jpegsRadio.isSelected()) {
            fileFilter = new IngestFileFilter();
            fileFilter.add("jpg", null);
+           fileFilter.add("png", null);
+           fileFilter.add("doc", null);
+           fileFilter.add("docx", null);
+           fileFilter.add("pdf", null);
+           fileFilter.add("htm", null);
+           fileFilter.add("html", null);
        }
        else if (userRadio.isSelected()) {
            fileFilter = new IngestFileFilter();
@@ -121,6 +132,10 @@ public class FileFilterDialog extends javax.swing.JDialog {
         // TODO add your handling code here:
         setLocationRelativeTo(null);
     }//GEN-LAST:event_formComponentShown
+
+    private void jpegsRadioActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jpegsRadioActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jpegsRadioActionPerformed
 
     IngestFileFilter getFileFilter() {
         return fileFilter;

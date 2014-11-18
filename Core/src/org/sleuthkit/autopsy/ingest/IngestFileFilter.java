@@ -19,6 +19,7 @@ class IngestFileFilter {
     void add(String extension, String path) {
         rules.add(new Rule(extension, path));
     }
+    
     boolean match(AbstractFile file) {
         if (rules.isEmpty())
             return true;
@@ -31,12 +32,23 @@ class IngestFileFilter {
     }
     
     class Rule {
-        private final String extension;
+        private String extension;
         private final String path;
 
         Rule(String extension, String path) {
-            this.extension = extension;
-            this.path = path;
+            if (extension != null) {
+                this.extension = extension.toLowerCase();
+                if (this.extension.startsWith(".") == false) 
+                    this.extension = "." + this.extension;
+            }
+            else {
+                this.extension = null;
+            }
+            
+            if (path != null)
+                this.path = path.toLowerCase();
+            else
+                this.path = null;
         }
         
         boolean match (AbstractFile file) {
