@@ -65,13 +65,12 @@ final class IngestJob {
      */
     private final long id;
     private final Content dataSource;
-    private final boolean processUnallocatedSpace;
+    private final IngestJobSettings ingestJobSettings;
     private final Object dataSourceIngestPipelineLock;
     private DataSourceIngestPipeline firstStageDataSourceIngestPipeline;
     private DataSourceIngestPipeline secondStageDataSourceIngestPipeline;
     private DataSourceIngestPipeline currentDataSourceIngestPipeline;
     private final LinkedBlockingQueue<FileIngestPipeline> fileIngestPipelines;
-    private final IngestFileFilter fileFilter;
 
     /**
      * An ingest runs in stages.
@@ -142,19 +141,16 @@ final class IngestJob {
      * Starts an ingest job for a data source.
      *
      * @param dataSource The data source to ingest.
-     * @param ingestModuleTemplates The ingest module templates to use to create
-     * the ingest pipelines for the job.
-     * @param processUnallocatedSpace Whether or not the job should include
-     * processing of unallocated space.
+     * @param settings The settings for the job.
      * @return A collection of ingest module start up errors, empty on success.
      */
-    static List<IngestModuleError> startJob(Content dataSource, List<IngestModuleTemplate> ingestModuleTemplates, boolean processUnallocatedSpace, IngestFileFilter fileFilter) {
+    static List<IngestModuleError> startJob(Content dataSource, IngestJobSettings settings) {
         List<IngestModuleError> errors = new ArrayList<>();
         if (IngestJob.jobCreationIsEnabled) {
             long jobId = nextJobId.incrementAndGet();
-            IngestJob job = new IngestJob(jobId, dataSource, processUnallocatedSpace, fileFilter);
+            IngestJob job = new IngestJob(jobId, dataSource, settings);
             IngestJob.jobsById.put(jobId, job);
-            errors = job.start(ingestModuleTemplates);
+            errors = job.start(settings.getEnabledIngestModuleTemplates());
             if (errors.isEmpty() && job.hasIngestPipeline()) {
                 IngestManager.getInstance().fireIngestJobStarted(jobId);
                 IngestJob.logger.log(Level.INFO, "Ingest job {0} started", jobId);
@@ -204,10 +200,11 @@ final class IngestJob {
      * @param processUnallocatedSpace Whether or not unallocated space should be
      * processed during the ingest job.
      */
-    private IngestJob(long id, Content dataSource, boolean processUnallocatedSpace, IngestFileFilter fileFilter) {
+    private IngestJob(long id, Content dataSource, IngestJobSettings settings) {
         this.id = id;
         this.dataSource = dataSource;
-        this.processUnallocatedSpace = processUnallocatedSpace;
+        
+        this.ingestJobSettings = settings;
         this.dataSourceIngestPipelineLock = new Object();
         this.fileIngestPipelines = new LinkedBlockingQueue<>();
         this.filesInProgress = new ArrayList<>();
@@ -216,7 +213,6 @@ final class IngestJob {
         this.stage = IngestJob.Stages.INITIALIZATION;
         this.stageCompletionCheckLock = new Object();
         this.startTime = new Date().getTime();
-        this.fileFilter = fileFilter;
     }
 
     /**
@@ -244,7 +240,11 @@ final class IngestJob {
      * @return True or false.
      */
     boolean shouldProcessUnallocatedSpace() {
-        return this.processUnallocatedSpace;
+        return this.ingestJobSettings.getProcessUnallocatedSpace();
+    }
+    
+    IngestFileFilter getFileFilter() {
+        return this.ingestJobSettings.getIngestFileFilter();
     }
 
     /**
@@ -994,11 +994,6 @@ final class IngestJob {
         return new IngestJobSnapshot();
 
     }
-    
-    IngestFileFilter getIngestFileFilter() {
-        return fileFilter;
-    }
-
 
     /**
      * Stores basic diagnostic statistics for an ingest job.

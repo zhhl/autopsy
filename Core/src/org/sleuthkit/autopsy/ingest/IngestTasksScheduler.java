@@ -251,6 +251,7 @@ final class IngestTasksScheduler {
         this.removeTasksForJob(this.directoryTasks, jobId);
         this.removeTasksForJob(this.pendingFileTasks, jobId);
         this.removeTasksForJob(this.pendingDataSourceTasks, jobId);
+        this.shuffleFileTaskQueues();
     }
 
     /**
@@ -389,7 +390,7 @@ final class IngestTasksScheduler {
         }
         
         if (file.isFile()) {
-            IngestFileFilter fileFilter = task.getIngestJob().getIngestFileFilter();
+            IngestFileFilter fileFilter = task.getIngestJob().getFileFilter();
             if (fileFilter != null && fileFilter.match(file) == false)
                 return false;
         }
