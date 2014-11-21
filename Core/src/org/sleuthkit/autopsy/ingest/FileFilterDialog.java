@@ -20,9 +20,9 @@
 package org.sleuthkit.autopsy.ingest;
 
 /**
- *
+ * Dialog to let user choose to analyze all files or subset. 
  */
-public class FileFilterDialog extends javax.swing.JDialog {
+class FileFilterDialog extends javax.swing.JDialog {
 
     private IngestFileFilter fileFilter = null;
     
