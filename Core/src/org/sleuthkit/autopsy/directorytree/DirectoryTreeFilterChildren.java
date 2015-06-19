@@ -47,7 +47,12 @@ import org.sleuthkit.datamodel.Volume;
  * hides files, '..', and other children that should not be displayed. facility
  * to customize nodes view in dir tree: hide them or set no children
  */
-class DirectoryTreeFilterChildren extends FilterNode.Children {
+/* @@@
+ * This was changed from Filternode.Children as part of testing the refresh because
+ * of the comment on this page: http://bits.netbeans.org/dev/javadoc/org-openide-nodes/org/openide/nodes/FilterNode.Children.html
+ * The migration is not complete though. I do not have this setup to be a node listener.  
+ */
+class DirectoryTreeFilterChildren extends Children.Keys<Node> {
 
     private final ShowItemVisitor showItemV = new ShowItemVisitor();
     private final IsLeafItemVisitor isLeafItemV = new IsLeafItemVisitor();
@@ -57,10 +62,10 @@ class DirectoryTreeFilterChildren extends FilterNode.Children {
      * the constructor
      */
     public DirectoryTreeFilterChildren(Node arg) {
-        super(arg);
+        super(false);
     }
 
-    @Override
+    //@Override
     protected Node copyNode(Node arg0) {
         return new DirectoryTreeFilterNode(arg0, true);
     }
@@ -70,7 +75,6 @@ class DirectoryTreeFilterChildren extends FilterNode.Children {
     }
 
 
-
     /* This method takes in a node as an argument and will create
      * a new one if it should be displayed in the tree.  If it is
      * to be displayed, it also figures out if it is a leaf or not
@@ -78,6 +82,8 @@ class DirectoryTreeFilterChildren extends FilterNode.Children {
      *
      * It does NOT create children nodes
      */
+    
+    
     @Override
     protected Node[] createNodes(Node origNode) {
         if (origNode == null || !(origNode instanceof DisplayableItemNode)) {
@@ -176,6 +182,8 @@ class DirectoryTreeFilterChildren extends FilterNode.Children {
             return Children.LEAF;
         }
     }
+
+    
 
     private static class IsLeafItemVisitor extends DisplayableItemNodeVisitor.Default<Boolean> {
 

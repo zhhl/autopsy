@@ -570,8 +570,13 @@ class SevenZipExtractor {
         // adding unpacked extracted derived files to the job after closing relevant resources.
          if (!unpackedFiles.isEmpty()) {
             //currently sending a single event for all new files
-            services.fireModuleContentEvent(new ModuleContentEvent(archiveFile));
+
             context.addFilesToJob(unpackedFiles);
+            
+            // this could probably go somewhere earlier in the code...
+            for (AbstractFile newFile : unpackedFiles) {
+                services.fireModuleContentEvent(new ModuleContentEvent(newFile));
+            }
         }
     }
 

@@ -18,11 +18,16 @@
  */
 package org.sleuthkit.autopsy.datamodel;
 
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
+import org.sleuthkit.autopsy.casemodule.Case;
 import org.sleuthkit.autopsy.coreutils.Logger;
+import org.sleuthkit.autopsy.ingest.IngestManager;
+import org.sleuthkit.autopsy.ingest.ModuleContentEvent;
 import org.sleuthkit.datamodel.Content;
 import org.sleuthkit.datamodel.Directory;
 import org.sleuthkit.datamodel.FileSystem;
@@ -30,28 +35,72 @@ import org.sleuthkit.datamodel.TskCoreException;
 import org.sleuthkit.datamodel.VolumeSystem;
 
 /**
- * Makes the children nodes / keys for a given content object.  
- * Has knowledge about the structure of the directory tree and what levels
- * should be ignored. 
+ * Makes the children nodes / keys for a given content object. Has knowledge
+ * about the structure of the directory tree and what levels should be ignored.
  * TODO consider a ContentChildren child factory
  */
 class ContentChildren extends AbstractContentChildren<Content> {
-    
+
     private static final Logger logger = Logger.getLogger(ContentChildren.class.getName());
-    //private static final int MAX_CHILD_COUNT = 1000000;
 
     private final Content parent;
 
     ContentChildren(Content parent) {
         super(); //initialize lazy behavior
         this.parent = parent;
+        /* These are in here versus addNotify because addNotify() is not 
+         * called for a file that does not have children when it is created (.i.e. a zip file). */
+        Case.addPropertyChangeListener(pcl);
+        IngestManager.getInstance().addIngestModuleEventListener(pcl);
     }
-    
+
+    private final PropertyChangeListener pcl = new PropertyChangeListener() {
+        @Override
+        public void propertyChange(PropertyChangeEvent evt) {
+            String eventType = evt.getPropertyName();
+
+            // See if the new file is a child of ours
+            if (eventType.equals(IngestManager.IngestModuleEvent.CONTENT_CHANGED.toString())) {
+                if ((evt.getOldValue() instanceof ModuleContentEvent) == false) {
+                    return;
+                }
+                ModuleContentEvent moduleContentEvent = (ModuleContentEvent) evt.getOldValue();
+                if ((moduleContentEvent.getSource() instanceof Content) == false) {
+                    return;
+                }
+                Content newContent = (Content) moduleContentEvent.getSource();
+                try {
+                    Content parentOfContent = newContent.getParent();
+                    // The new file is my child, so refresh our children.
+                    if (parentOfContent.getId() == parent.getId()) {
+                        // @@@ REMOVED FOR TESTING refreshKeys();
+                    }
+
+                    // See if my child has a new child.  This is needed because
+                    // directory tree needs to now show my child if it is a parent.
+                    // DirectoryTreeFilterChildren does not show nodes if they do
+                    // not have children.
+                    Content p2 = parentOfContent.getParent();
+                    if ((p2 != null) && (p2.getId() == parent.getId())) {
+                        refreshKeys(parentOfContent);
+                    }
+                } catch (TskCoreException ex) {
+                    // @@@ TODO
+                }
+            } else if (eventType.equals(Case.Events.CURRENT_CASE.toString())) {
+                // case was closed. Remove listeners so that we don't get called with a stale case handle
+                if (evt.getNewValue() == null) {
+                    removeNotify();
+                }
+            }
+        }
+    };
+
     /**
      * Get the children of the Content object based on what we want to display.
-     * As an example, we don't display the direct children of VolumeSystems
-     * or FileSystems.  We hide some of the levels in the tree.  This method 
-     * takes care of that and returns the children we want to display
+     * As an example, we don't display the direct children of VolumeSystems or
+     * FileSystems. We hide some of the levels in the tree. This method takes
+     * care of that and returns the children we want to display
      *
      * @param parent
      * @return
@@ -66,7 +115,7 @@ class ContentChildren extends AbstractContentChildren<Content> {
             tmpChildren = Collections.emptyList();
         }
 
-           // Cycle through the list and make a new one based
+        // Cycle through the list and make a new one based
         // on what we actually want to display. 
         List<Content> children = new ArrayList<>();
         for (Content c : tmpChildren) {
@@ -92,32 +141,33 @@ class ContentChildren extends AbstractContentChildren<Content> {
         }
         return children;
     }
-       
 
     @Override
     protected void addNotify() {
         super.addNotify();
-        
-        //TODO check global settings
-        //if above limit, query and return subrange
-        
-        //StopWatch s2 = new StopWatch();
-        //s2.start();
-        //logger.log(Level.INFO, "GETTING CHILDREN CONTENT for parent: " + parent.getName());
-        List<Content> children = getDisplayChildren(parent);
-        //s2.stop();
-        //logger.log(Level.INFO, "GOT CHILDREN CONTENTS:" + children.size() + ", took: " + s2.getElapsedTime());
-        
-        
-        //limit number children
-        //setKeys(children.subList(0, Math.min(children.size(), MAX_CHILD_COUNT)));
+        refreshKeys(null);
+    }
 
+    /**
+     * Reset the keys for the latest set of children this node has. 
+     * @param key Key that needs an explicit refresh because we think 
+     * it's state dramatically changed. Or null to do basic resetting. 
+     */
+    private void refreshKeys(Content key) {
+        List<Content> children = getDisplayChildren(parent);
         setKeys(children);
+        // @@@ THis was added as part of testing the content added refresh work.
+        // Not sure it is really needed or not. 
+        if (key != null) {
+            refreshKey(key); // TEST 
+        }
     }
 
     @Override
     protected void removeNotify() {
         super.removeNotify();
-        setKeys(new ArrayList<Content>());
-    }    
+        Case.removePropertyChangeListener(pcl);
+        IngestManager.getInstance().removeIngestModuleEventListener(pcl);
+        setKeys(new ArrayList<>());
+    }
 }

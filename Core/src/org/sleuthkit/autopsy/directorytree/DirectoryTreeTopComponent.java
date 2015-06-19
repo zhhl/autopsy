@@ -588,14 +588,14 @@ public final class DirectoryTreeTopComponent extends TopComponent implements Dat
             SwingUtilities.invokeLater(new Runnable() {
                 @Override
                 public void run() {
-                    refreshDataSourceTree();
+                    //refreshDataSourceTree();
                 }
             });
         } else if (changed.equals(IngestManager.IngestModuleEvent.CONTENT_CHANGED.toString())) {
             SwingUtilities.invokeLater(new Runnable() {
                 @Override
                 public void run() {
-                    refreshDataSourceTree();
+                    //refreshDataSourceTree();
                 }
             });
         }

@@ -20,7 +20,7 @@ package org.sleuthkit.autopsy.datamodel;
 
 import java.util.List;
 import java.util.logging.Level;
-
+import org.openide.util.Exceptions;
 import org.openide.util.NbBundle;
 import org.openide.util.lookup.Lookups;
 import org.sleuthkit.autopsy.coreutils.Logger;
@@ -169,5 +169,60 @@ public abstract class AbstractContentNode<T extends Content> extends ContentNode
      */
     public int read(byte[] buf, long offset, long len) throws TskException {
         return content.read(buf, offset, len);
+    }
+    
+    // @@@ main reason for overriding these while testing various refresh options
+    // is to force the comparision to consider if the node has children or not. 
+    // That way when we call setKeys(), for a file that was already there, a
+    // refresh will be forced. 
+     @Override
+    public boolean equals(Object o) {
+        if ((o instanceof AbstractContentNode) == false){
+            return false;
+        }
+        Content oContent = ((AbstractContentNode)o).getContent();
+        if (oContent.getId() != content.getId())
+            return false;
+        
+        
+        // @@@ Strangely, the node that has new derived children always 
+        // comes in here thinking that it always had children.  I never saw 
+        // a situation where we had two nodes for the same file, but one had children
+        // (i.e. the new node after the derived files were added) and one had
+        // no children (i.e. the node that was created before the file had children). 
+        // code always seems to have. One theory for this is from here: 
+        // http://bits.netbeans.org/8.0/javadoc/org-openide-nodes/org/openide/nodes/FilterNode.Children.html.
+        /* FilterNode.Children is not well suited to cases where you need to insert additional nodes at the beginning 
+                or end of the list, or where you may need to merge together multiple original children lists, or 
+                reorder them, etc. That is because the keys are of type Node, one for each original child, and 
+                the keys are reset during addNotify(), filterChildrenAdded(org.openide.nodes.NodeMemberEvent), 
+                filterChildrenRemoved(org.openide.nodes.NodeMemberEvent), and 
+                filterChildrenReordered(org.openide.nodes.NodeReorderEvent), so it is not trivial to use different 
+                keys: you would need to override addNotify (calling super first!) and the other three update methods. 
+                For such complex cases you will do better by creating your own Children.Keys subclass, setting 
+                keys that are useful to you, and keeping a NodeListener on the original node to handle changes.
+          By 'resetting' the keys, I"m not sure if that means that they reload them and therefore during the reload 
+          the newly reloaded nodes think they have children and always did have children.  I tried to override those,
+          but it didn't quite work - they were never called.  This could use some further work in DirectoryTreeFilterChildren. 
+        
+        */
+        try {
+            return (oContent.hasChildren() == content.hasChildren());
+        } catch (TskCoreException ex) {
+            return false;
+        }
+    }
+    
+    @Override
+    public int hashCode() {
+        int hashCode = 22;
+        hashCode = hashCode * 51 + (int)content.getId(); 
+        try {
+            if (content.hasChildren())
+                hashCode = hashCode + 1;
+        } catch (TskCoreException ex) {
+            Exceptions.printStackTrace(ex);
+        }
+        return hashCode;
     }
 }
