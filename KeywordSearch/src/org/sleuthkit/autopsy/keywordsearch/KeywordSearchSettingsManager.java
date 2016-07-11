@@ -1,15 +1,15 @@
 /*
  * Autopsy Forensic Browser
- * 
+ *
  * Copyright 2011-2016 Basis Technology Corp.
  * Contact: carrier <at> sleuthkit <dot> org
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,11 +24,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
+import org.openide.util.NbBundle;
 import org.openide.util.io.NbObjectInputStream;
 import org.openide.util.io.NbObjectOutputStream;
 import org.sleuthkit.autopsy.coreutils.Logger;
@@ -40,46 +42,45 @@ import org.sleuthkit.autopsy.keywordsearch.KeywordSearchIngestModule.UpdateFrequ
 import org.sleuthkit.datamodel.BlackboardAttribute;
 
 /**
- * Class for managing the settings for keyword search, including both the
- * keyword lists and the properties for keyword search.
+ * A manager for the settings for keyword search.
  */
-class KeywordSearchSettingsManager {
+final class KeywordSearchSettingsManager {
 
-    private KeywordSearchSettings settings = new KeywordSearchSettings();
-
-    private static final String CUR_LISTS_FILE_NAME = "keywords.settings";     //NON-NLS
-    private static final String CUR_LISTS_FILE = PlatformUtil.getUserConfigDirectory() + File.separator + CUR_LISTS_FILE_NAME;
-    private static final Logger logger = Logger.getLogger(KeywordSearchSettingsManager.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(KeywordSearchSettingsManager.class.getName());
+    private static final String SETTINGS_FILE_PATH = Paths.get(PlatformUtil.getUserConfigDirectory(), "keywords.settings").toString(); //NON-NLS
+    
+//KeywordSearchSettings.moduleName.text=KeywordSearch
+//KeywordSearchSettings.properties_options.text={0}_Options
+//KeywordSearchSettings.propertiesNSRL.text={0}_NSRL
+//KeywordSearchSettings.propertiesScripts.text={0}_Scripts    
+    
+    
+    static final String LEGACY_OPTIONS_KEY = "KeywordSearch_Options";
+    static final String LEGACY_NSRL_KEY = "KeywordSearch_NSRL";
+    static final String LEGACY_SCRIPTS_KEY = "KeywordSearch_Scripts";
     private static KeywordSearchSettingsManager instance;
-    private PropertyChangeSupport changeSupport = new PropertyChangeSupport(this);
+    private final PropertyChangeSupport changeSupport;
+    private KeywordSearchSettings settings;
 
     /**
-     * Property change event support In events: For all of these enums, the old
-     * value should be null, and the new value should be the keyword list name
-     * string.
+     * Property change events fired when the keyword list settings change.
      */
     enum ListsEvt {
 
         LIST_ADDED, LIST_DELETED, LIST_UPDATED
     };
 
+    /**
+     * Property change events fired when the language settings change.
+     */
     enum LanguagesEvent {
 
         LANGUAGES_CHANGED, ENCODINGS_CHANGED
     }
 
     /**
-     * Constructs a KeywordSearchSettingsManager.
-     *
-     * @throws KeywordSearchSettingsManagerException When the settings cannot be
-     *                                               read from disk.
-     */
-    private KeywordSearchSettingsManager() throws KeywordSearchSettingsManagerException {
-        readSettings();
-    }
-
-    /**
-     * Gets the singleton instance of the KeywordSearchSettingsManager.
+     * Gets the singleton instance of the manager for the settings for keyword
+     * search.
      *
      * @return The singleton KeywordSearchSettingsManager.
      *
@@ -94,165 +95,29 @@ class KeywordSearchSettingsManager {
     }
 
     /**
-     * Writes the settings to disk.
+     * A manager for the settings for keyword search.
      *
-     * @throwsKeywordSearchSettingsManagerException If the settings could not be
-     * written to disk.
-     */
-    private void writeSettings() throws KeywordSearchSettingsManagerException {
-        try (NbObjectOutputStream out = new NbObjectOutputStream(new FileOutputStream(CUR_LISTS_FILE))) {
-            out.writeObject(settings);
-        } catch (IOException ex) {
-            throw new KeywordSearchSettingsManagerException("Couldn't keyword search settings.", ex);
-        }
-    }
-
-    /**
-     * Reads in the settings from disk, in the following order of priority:
-     * Serialized settings, XML/Props files, no settings (loads defaults).
-     *
-     * @throws KeywordSearchSettingsManagerException If the settings cannot be
+     * @throws KeywordSearchSettingsManagerException When the settings cannot be
      *                                               read from disk.
      */
-    private void readSettings() throws KeywordSearchSettingsManagerException {
-        File serializedDefs = new File(CUR_LISTS_FILE);
-        if (serializedDefs.exists()) {
-            try {
-                try (NbObjectInputStream in = new NbObjectInputStream(new FileInputStream(serializedDefs))) {
-                    settings = (KeywordSearchSettings) in.readObject();
-                }
-            } catch (IOException | ClassNotFoundException ex) {
-                throw new KeywordSearchSettingsManagerException("Couldn't read keyword search settings.", ex);
-            }
-        } else {
-            this.loadDefaultSettings();
-            XmlKeywordListImportExport xmlReader = XmlKeywordListImportExport.getCurrent();
-            List<KeywordList> newKeywordLists = new ArrayList<>();
-            List<KeywordList> keywordLists = this.settings.getKeywordLists();
-            newKeywordLists.addAll(keywordLists);
-            List<KeywordList> xmlLists = xmlReader.load();
-            if (xmlLists != null) {
-                newKeywordLists.addAll(xmlLists);
-            }
-            this.settings.setKeywordLists(newKeywordLists);
-            this.writeSettings();
-        }
+    private KeywordSearchSettingsManager() throws KeywordSearchSettingsManagerException {
+        changeSupport = new PropertyChangeSupport(this);
+        readSettings();
     }
 
     /**
-     * Loads the default keyword search settings into the settings object, or if
-     * there are properties files loads what is contained in them.
-     */
-    private void loadDefaultSettings() {
-        List<KeywordList> keywordLists = this.prepopulateLists();
-        this.settings.setKeywordLists(keywordLists);
-        if (ModuleSettings.settingExists(KeywordSearchSettings.PROPERTIES_NSRL, "SkipKnown")) { //NON-NLS
-            settings.setSkipKnown(Boolean.parseBoolean(ModuleSettings.getConfigSetting(KeywordSearchSettings.PROPERTIES_NSRL, "SkipKnown")));
-        } else {
-            settings.setSkipKnown(true);
-        }
-        if (ModuleSettings.settingExists(KeywordSearchSettings.PROPERTIES_OPTIONS, "showSnippets")) {
-            settings.setShowSnippets(ModuleSettings.getConfigSetting(KeywordSearchSettings.PROPERTIES_OPTIONS, "showSnippets").equals("true")); //NON-NLS
-        }
-        //setting default Update Frequency
-        if (ModuleSettings.settingExists(KeywordSearchSettings.PROPERTIES_OPTIONS, "UpdateFrequency")) { //NON-NLS
-            settings.setUpdateFrequency(UpdateFrequency.valueOf(ModuleSettings.getConfigSetting(KeywordSearchSettings.PROPERTIES_OPTIONS, "UpdateFrequency"))); //NON-NLS
-        } else {
-            settings.setUpdateFrequency(UpdateFrequency.DEFAULT);
-        }
-        //setting default Extract UTF8
-        if (ModuleSettings.settingExists(KeywordSearchSettings.PROPERTIES_OPTIONS, TextExtractor.ExtractOptions.EXTRACT_UTF8.toString())) {
-            settings.setStringExtractOption(TextExtractor.ExtractOptions.EXTRACT_UTF8.toString(), ModuleSettings.getConfigSetting(KeywordSearchSettings.PROPERTIES_OPTIONS, TextExtractor.ExtractOptions.EXTRACT_UTF8.toString()));
-        } else {
-            settings.setStringExtractOption(TextExtractor.ExtractOptions.EXTRACT_UTF8.toString(), Boolean.TRUE.toString());
-        }
-        //setting default Extract UTF16
-        if (ModuleSettings.settingExists(KeywordSearchSettings.PROPERTIES_OPTIONS, TextExtractor.ExtractOptions.EXTRACT_UTF16.toString())) {
-            settings.setStringExtractOption(TextExtractor.ExtractOptions.EXTRACT_UTF16.toString(), ModuleSettings.getConfigSetting(KeywordSearchSettings.PROPERTIES_OPTIONS, TextExtractor.ExtractOptions.EXTRACT_UTF16.toString()));
-
-        } else {
-            settings.setStringExtractOption(TextExtractor.ExtractOptions.EXTRACT_UTF16.toString(), Boolean.TRUE.toString());
-        }
-        //setting default Latin-1 Script
-        if (ModuleSettings.getConfigSettings(KeywordSearchSettings.PROPERTIES_SCRIPTS) != null && !ModuleSettings.getConfigSettings(KeywordSearchSettings.PROPERTIES_SCRIPTS).isEmpty()) {
-            List<SCRIPT> scripts = new ArrayList<>();
-            for (Map.Entry<String, String> kvp : ModuleSettings.getConfigSettings(KeywordSearchSettings.PROPERTIES_SCRIPTS).entrySet()) {
-                if (kvp.getValue().equals("true")) { //NON-NLS
-                    scripts.add(SCRIPT.valueOf(kvp.getKey()));
-                }
-            }
-            settings.setStringExtractScripts(scripts);
-        } else {
-            List<SCRIPT> scripts = new ArrayList<>();
-            scripts.add(SCRIPT.LATIN_1);
-            settings.setStringExtractScripts(scripts);
-        }
-    }
-
-    /**
-     * Reloads the settings from the disk.
-     */
-    void reload() throws KeywordSearchSettingsManagerException {
-        this.readSettings();
-    }
-
-    /**
-     * Creates the default lists to be loaded upon creating the settings.
+     * Adds a property change listener.
      *
-     * @return The default lists.
-     */
-    List<KeywordList> prepopulateLists() {
-        List<KeywordList> keywordLists = new ArrayList<>();
-        //phone number
-        List<Keyword> phones = new ArrayList<>();
-        phones.add(new Keyword("[(]{0,1}\\d\\d\\d[)]{0,1}[\\.-]\\d\\d\\d[\\.-]\\d\\d\\d\\d", false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_PHONE_NUMBER)); //NON-NLS
-        //phones.add(new Keyword("\\d{8,10}", false));
-        //IP address
-        List<Keyword> ips = new ArrayList<>();
-        ips.add(new Keyword("(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])", false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_IP_ADDRESS));
-        //email
-        List<Keyword> emails = new ArrayList<>();
-        emails.add(new Keyword("(?=.{8})[a-z0-9%+_-]+(?:\\.[a-z0-9%+_-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,4}(?<!\\.txt|\\.exe|\\.dll|\\.jpg|\\.xml)", //NON-NLS
-                false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_EMAIL));
-        //emails.add(new Keyword("[A-Z0-9._%-]+@[A-Z0-9.-]+\\.[A-Z]{2,4}", 
-        //                       false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_EMAIL));
-        //URL
-        List<Keyword> urls = new ArrayList<>();
-        //urls.add(new Keyword("http://|https://|^www\\.", false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_URL));
-        urls.add(new Keyword("((((ht|f)tp(s?))\\://)|www\\.)[a-zA-Z0-9\\-\\.]+\\.([a-zA-Z]{2,5})(\\:[0-9]+)*(/($|[a-zA-Z0-9\\.\\,\\;\\?\\'\\\\+&amp;%\\$#\\=~_\\-]+))*", false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_URL)); //NON-NLS
-
-        //urls.add(new Keyword("ssh://", false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_URL));
-        //disable messages for harcoded/locked lists
-        String name;
-
-        name = "Phone Numbers"; //NON-NLS
-        keywordLists.add(new KeywordList(name, new Date(), new Date(), false, false, phones, true));
-
-        name = "IP Addresses"; //NON-NLS
-        keywordLists.add(new KeywordList(name, new Date(), new Date(), false, false, ips, true));
-
-        name = "Email Addresses"; //NON-NLS
-        keywordLists.add(new KeywordList(name, new Date(), new Date(), false, false, emails, true));
-
-        name = "URLs"; //NON-NLS
-        keywordLists.add(new KeywordList(name, new Date(), new Date(), false, false, urls, true));
-
-        return keywordLists;
-    }
-
-    /**
-     * Adds the given property change listener
-     *
-     * @param listener The listener to add
+     * @param listener The listener to add.
      */
     void addPropertyChangeListener(PropertyChangeListener listener) {
         changeSupport.addPropertyChangeListener(listener);
     }
 
     /**
-     * Removes the given property change listener
+     * Removes a property change listener.
      *
-     * @param listener The listener to remove
+     * @param listener The listener to remove.
      */
     void removePropertyChangeListener(PropertyChangeListener listener) {
         changeSupport.removePropertyChangeListener(listener);
@@ -267,9 +132,16 @@ class KeywordSearchSettingsManager {
     void fireLanguagesEvent(LanguagesEvent event) {
         try {
             changeSupport.firePropertyChange(event.toString(), null, null);
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "KeywordSearchListsAbstract listener threw exception", e); //NON-NLS
+        } catch (Exception ex) {
+            LOGGER.log(Level.SEVERE, "KeywordSearchSettingsManager listener threw exception", ex); //NON-NLS
         }
+    }
+
+    /**
+     * Reloads the settings from the disk.
+     */
+    void reload() throws KeywordSearchSettingsManagerException {
+        this.readSettings();
     }
 
     /**
@@ -557,9 +429,161 @@ class KeywordSearchSettingsManager {
     }
 
     /**
-     * Used to translate more implementation-details-specific exceptions (which
-     * are logged by this class) into more generic exceptions for propagation to
-     * clients of the user-defined file types manager.
+     * Reads the keyword search settings from secondary storage.
+     *
+     * @throws KeywordSearchSettingsManagerException If there is a problem
+     *                                               reading the settings.
+     */
+    private void readSettings() throws KeywordSearchSettingsManagerException {
+        File serializedSettingsFile = new File(SETTINGS_FILE_PATH);
+        if (serializedSettingsFile.exists()) {
+            settings = readSerializedSettings(serializedSettingsFile);
+        } else {
+            settings = new KeywordSearchSettings();
+            readLegacyPropertyFileSettings(settings);
+
+            this.settings.setKeywordLists(prepopulateLists());
+            XmlKeywordListImportExport xmlReader = XmlKeywordListImportExport.getCurrent();
+            List<KeywordList> newKeywordLists = new ArrayList<>();
+            List<KeywordList> keywordLists = this.settings.getKeywordLists();
+            newKeywordLists.addAll(keywordLists);
+            List<KeywordList> xmlLists = xmlReader.load();
+            if (xmlLists != null) {
+                newKeywordLists.addAll(xmlLists);
+            }
+            this.settings.setKeywordLists(newKeywordLists);
+            this.writeSettings();
+        }
+    }
+
+    /**
+     * Reads the keyword search settings from a settings object serialization
+     * file.
+     *
+     * @param settingsFile The settings object serialization file.
+     *
+     * @return The deserialized settings.
+     *
+     * @throws KeywordSearchSettingsManagerException If there is a problem
+     *                                               reading the settings.
+     */
+    private static KeywordSearchSettings readSerializedSettings(File settingsFile) throws KeywordSearchSettingsManagerException {
+        try {
+            try (NbObjectInputStream in = new NbObjectInputStream(new FileInputStream(settingsFile))) {
+                return (KeywordSearchSettings) in.readObject();
+            }
+        } catch (IOException | ClassNotFoundException ex) {
+            throw new KeywordSearchSettingsManagerException("Error reading serialized keyword search settings", ex);
+        }
+    }
+
+    /**
+     * Gets the settings that used to be stored in property files.
+     */
+    private static void readLegacyPropertyFileSettings(KeywordSearchSettings settings) {
+        if (ModuleSettings.settingExists(LEGACY_NSRL_KEY, "SkipKnown")) { //NON-NLS
+            settings.setSkipKnown(Boolean.parseBoolean(ModuleSettings.getConfigSetting(KeywordSearchSettings.PROPERTIES_NSRL, "SkipKnown")));
+        } 
+        if (ModuleSettings.settingExists(LEGACY_OPTIONS_KEY, "showSnippets")) {
+            settings.setShowSnippets(ModuleSettings.getConfigSetting(LEGACY_OPTIONS_KEY, "showSnippets").equals("true")); //NON-NLS
+        }
+        
+        
+        //setting default Update Frequency
+        if (ModuleSettings.settingExists(KeywordSearchSettings.PROPERTIES_OPTIONS, "UpdateFrequency")) { //NON-NLS
+            settings.setUpdateFrequency(UpdateFrequency.valueOf(ModuleSettings.getConfigSetting(KeywordSearchSettings.PROPERTIES_OPTIONS, "UpdateFrequency"))); //NON-NLS
+        } else {
+            settings.setUpdateFrequency(UpdateFrequency.DEFAULT);
+        }
+        //setting default Extract UTF8
+        if (ModuleSettings.settingExists(KeywordSearchSettings.PROPERTIES_OPTIONS, TextExtractor.ExtractOptions.EXTRACT_UTF8.toString())) {
+            settings.setStringExtractOption(TextExtractor.ExtractOptions.EXTRACT_UTF8.toString(), ModuleSettings.getConfigSetting(KeywordSearchSettings.PROPERTIES_OPTIONS, TextExtractor.ExtractOptions.EXTRACT_UTF8.toString()));
+        } else {
+            settings.setStringExtractOption(TextExtractor.ExtractOptions.EXTRACT_UTF8.toString(), Boolean.TRUE.toString());
+        }
+        //setting default Extract UTF16
+        if (ModuleSettings.settingExists(KeywordSearchSettings.PROPERTIES_OPTIONS, TextExtractor.ExtractOptions.EXTRACT_UTF16.toString())) {
+            settings.setStringExtractOption(TextExtractor.ExtractOptions.EXTRACT_UTF16.toString(), ModuleSettings.getConfigSetting(KeywordSearchSettings.PROPERTIES_OPTIONS, TextExtractor.ExtractOptions.EXTRACT_UTF16.toString()));
+
+        } else {
+            settings.setStringExtractOption(TextExtractor.ExtractOptions.EXTRACT_UTF16.toString(), Boolean.TRUE.toString());
+        }
+        //setting default Latin-1 Script
+        if (ModuleSettings.getConfigSettings(KeywordSearchSettings.PROPERTIES_SCRIPTS) != null && !ModuleSettings.getConfigSettings(KeywordSearchSettings.PROPERTIES_SCRIPTS).isEmpty()) {
+            List<SCRIPT> scripts = new ArrayList<>();
+            for (Map.Entry<String, String> kvp : ModuleSettings.getConfigSettings(KeywordSearchSettings.PROPERTIES_SCRIPTS).entrySet()) {
+                if (kvp.getValue().equals("true")) { //NON-NLS
+                    scripts.add(SCRIPT.valueOf(kvp.getKey()));
+                }
+            }
+            settings.setStringExtractScripts(scripts);
+        } else {
+            List<SCRIPT> scripts = new ArrayList<>();
+            scripts.add(SCRIPT.LATIN_1);
+            settings.setStringExtractScripts(scripts);
+        }
+    }
+
+    /**
+     * Creates the default lists to be loaded upon creating the settings.
+     *
+     * @return The default lists.
+     */
+    List<KeywordList> prepopulateLists() {
+        List<KeywordList> keywordLists = new ArrayList<>();
+        //phone number
+        List<Keyword> phones = new ArrayList<>();
+        phones.add(new Keyword("[(]{0,1}\\d\\d\\d[)]{0,1}[\\.-]\\d\\d\\d[\\.-]\\d\\d\\d\\d", false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_PHONE_NUMBER)); //NON-NLS
+        //phones.add(new Keyword("\\d{8,10}", false));
+        //IP address
+        List<Keyword> ips = new ArrayList<>();
+        ips.add(new Keyword("(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])", false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_IP_ADDRESS));
+        //email
+        List<Keyword> emails = new ArrayList<>();
+        emails.add(new Keyword("(?=.{8})[a-z0-9%+_-]+(?:\\.[a-z0-9%+_-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,4}(?<!\\.txt|\\.exe|\\.dll|\\.jpg|\\.xml)", //NON-NLS
+                false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_EMAIL));
+        //emails.add(new Keyword("[A-Z0-9._%-]+@[A-Z0-9.-]+\\.[A-Z]{2,4}", 
+        //                       false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_EMAIL));
+        //URL
+        List<Keyword> urls = new ArrayList<>();
+        //urls.add(new Keyword("http://|https://|^www\\.", false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_URL));
+        urls.add(new Keyword("((((ht|f)tp(s?))\\://)|www\\.)[a-zA-Z0-9\\-\\.]+\\.([a-zA-Z]{2,5})(\\:[0-9]+)*(/($|[a-zA-Z0-9\\.\\,\\;\\?\\'\\\\+&amp;%\\$#\\=~_\\-]+))*", false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_URL)); //NON-NLS
+
+        //urls.add(new Keyword("ssh://", false, BlackboardAttribute.ATTRIBUTE_TYPE.TSK_URL));
+        //disable messages for harcoded/locked lists
+        String name;
+
+        name = "Phone Numbers"; //NON-NLS
+        keywordLists.add(new KeywordList(name, new Date(), new Date(), false, false, phones, true));
+
+        name = "IP Addresses"; //NON-NLS
+        keywordLists.add(new KeywordList(name, new Date(), new Date(), false, false, ips, true));
+
+        name = "Email Addresses"; //NON-NLS
+        keywordLists.add(new KeywordList(name, new Date(), new Date(), false, false, emails, true));
+
+        name = "URLs"; //NON-NLS
+        keywordLists.add(new KeywordList(name, new Date(), new Date(), false, false, urls, true));
+
+        return keywordLists;
+    }
+
+    /**
+     * Writes the settings to disk.
+     *
+     * @throwsKeywordSearchSettingsManagerException If the settings could not be
+     * written to disk.
+     */
+    private void writeSettings() throws KeywordSearchSettingsManagerException {
+        try (NbObjectOutputStream out = new NbObjectOutputStream(new FileOutputStream(SETTINGS_FILE_PATH))) {
+            out.writeObject(settings);
+        } catch (IOException ex) {
+            throw new KeywordSearchSettingsManagerException("Couldn't keyword search settings.", ex);
+        }
+    }
+
+    /**
+     * Exceptions thrown by a manager for the settings for keyword search.
      */
     static class KeywordSearchSettingsManagerException extends Exception {
 

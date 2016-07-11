@@ -1,7 +1,7 @@
 /*
  * Autopsy Forensic Browser
  *
- * Copyright 2011-2014 Basis Technology Corp.
+ * Copyright 2011-2016 Basis Technology Corp.
  * Contact: carrier <at> sleuthkit <dot> org
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,9 +57,9 @@ final class XmlKeywordListImportExport {
     private static final String KEYWORD_LITERAL_ATTR = "literal"; //NON-NLS
     private static final String KEYWORD_SELECTOR_ATTR = "selector"; //NON-NLS
     private static final String DATE_FORMAT = "yyyy-MM-dd HH:mm:ss"; //NON-NLS
+    private static final DateFormat dateFormatter  = new SimpleDateFormat(DATE_FORMAT);
     private static final String ENCODING = "UTF-8"; //NON-NLS
     private static XmlKeywordListImportExport currentInstance = null;
-    private final DateFormat dateFormatter;
     private String filePath;
 
     static synchronized XmlKeywordListImportExport getCurrent() {
@@ -77,7 +77,6 @@ final class XmlKeywordListImportExport {
      */
     XmlKeywordListImportExport(String xmlFile) {
         this.filePath = xmlFile;
-        dateFormatter = new SimpleDateFormat(DATE_FORMAT);
     }
 
     public boolean save(List<KeywordList> keywordLists) {

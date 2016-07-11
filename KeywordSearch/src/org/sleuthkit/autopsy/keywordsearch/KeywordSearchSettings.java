@@ -39,6 +39,8 @@ final class KeywordSearchSettings implements Serializable {
     static final String PROPERTIES_OPTIONS = NbBundle.getMessage(KeywordSearchSettings.class, "KeywordSearchSettings.properties_options.text", MODULE_NAME);
     static final String PROPERTIES_NSRL = NbBundle.getMessage(KeywordSearchSettings.class, "KeywordSearchSettings.propertiesNSRL.text", MODULE_NAME);
     static final String PROPERTIES_SCRIPTS = NbBundle.getMessage(KeywordSearchSettings.class, "KeywordSearchSettings.propertiesScripts.text", MODULE_NAME);
+    
+    
     static final String SHOW_SNIPPETS = "showSnippets"; //NON-NLS
     static final boolean DEFAULT_SHOW_SNIPPETS = true;
     private boolean showSnippets;

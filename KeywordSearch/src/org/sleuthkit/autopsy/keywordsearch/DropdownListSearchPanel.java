@@ -1,15 +1,15 @@
 /*
  * Autopsy Forensic Browser
- * 
- * Copyright 2011-2015 Basis Technology Corp.
+ *
+ * Copyright 2011-2016 Basis Technology Corp.
  * Contact: carrier <at> sleuthkit <dot> org
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,7 +24,6 @@ import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -34,7 +33,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
@@ -48,22 +46,20 @@ import static javax.swing.SwingConstants.CENTER;
 import javax.swing.table.DefaultTableCellRenderer;
 
 /**
- * Viewer panel widget for keyword lists that is used in the ingest config and
- * options area.
+ * Panel that allows a user to do a keyword list search without running ingest.
+ * Appears as a dropdown from the keyword lists search button on the far right
+ * side of the tool bar.
  */
 class DropdownListSearchPanel extends KeywordSearchPanel {
 
+    private static final long serialVersionUID = 1L;
     private static final Logger logger = Logger.getLogger(DropdownListSearchPanel.class.getName());
     private static DropdownListSearchPanel instance;
-    private XmlKeywordListImportExport loader;
     private final KeywordListsTableModel listsTableModel;
     private final KeywordsTableModel keywordsTableModel;
     private ActionListener searchAddListener;
     private boolean ingestRunning;
 
-    /**
-     * Creates new form DropdownListSearchPanel
-     */
     private DropdownListSearchPanel() {
         listsTableModel = new KeywordListsTableModel();
         keywordsTableModel = new KeywordsTableModel();
@@ -81,7 +77,7 @@ class DropdownListSearchPanel extends KeywordSearchPanel {
     private void customizeComponents() {
         listsTable.setTableHeader(null);
         listsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        //customize column witdhs
+
         final int leftWidth = leftPane.getPreferredSize().width;
         TableColumn column;
         for (int i = 0; i < listsTable.getColumnCount(); i++) {
@@ -93,6 +89,7 @@ class DropdownListSearchPanel extends KeywordSearchPanel {
                 column.setPreferredWidth(((int) (leftWidth * 0.89)));
             }
         }
+        
         final int rightWidth = rightPane.getPreferredSize().width;
         for (int i = 0; i < keywordsTable.getColumnCount(); i++) {
             column = keywordsTable.getColumnModel().getColumn(i);
@@ -104,49 +101,36 @@ class DropdownListSearchPanel extends KeywordSearchPanel {
             }
         }
 
-        loader = XmlKeywordListImportExport.getCurrent();
-        listsTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
-            @Override
-            public void valueChanged(ListSelectionEvent e) {
-                ListSelectionModel listSelectionModel = (ListSelectionModel) e.getSource();
-                if (!listSelectionModel.isSelectionEmpty()) {
-                    int index = listSelectionModel.getMinSelectionIndex();
-                    KeywordList list = listsTableModel.getListAt(index);
-                    keywordsTableModel.resync(list);
-                } else {
-                    keywordsTableModel.deleteAll();
-                }
+        listsTable.getSelectionModel().addListSelectionListener((ListSelectionEvent e) -> {
+            ListSelectionModel listSelectionModel = (ListSelectionModel) e.getSource();
+            if (!listSelectionModel.isSelectionEmpty()) {
+                int index = listSelectionModel.getMinSelectionIndex();
+                KeywordList list = listsTableModel.getListAt(index);
+                keywordsTableModel.resync(list);
+            } else {
+                keywordsTableModel.deleteAll();
             }
         });
 
         ingestRunning = IngestManager.getInstance().isIngestRunning();
         updateComponents();
 
-        IngestManager.getInstance().addIngestJobEventListener(new PropertyChangeListener() {
-            @Override
-            public void propertyChange(PropertyChangeEvent evt) {
-                Object source = evt.getSource();
-                if (source instanceof String && ((String) source).equals("LOCAL")) { //NON-NLS
-                    EventQueue.invokeLater(new Runnable() {
-                        @Override
-                        public void run() {
-                            ingestRunning = IngestManager.getInstance().isIngestRunning();
-                            updateComponents();
-                        }
-                    });
-                }
+        IngestManager.getInstance().addIngestJobEventListener((PropertyChangeEvent evt) -> {
+            Object source = evt.getSource();
+            if (source instanceof String && ((String) source).equals("LOCAL")) { //NON-NLS
+                EventQueue.invokeLater(() -> {
+                    ingestRunning = IngestManager.getInstance().isIngestRunning();
+                    updateComponents();
+                });
             }
         });
 
-        searchAddListener = new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (ingestRunning) {
-                    SearchRunner.getInstance().addKeywordListsToAllJobs(listsTableModel.getSelectedLists());
-                    logger.log(Level.INFO, "Submitted enqueued lists to ingest"); //NON-NLS
-                } else {
-                    searchAction(e);
-                }
+        searchAddListener = (ActionEvent e) -> {
+            if (ingestRunning) {
+                SearchRunner.getInstance().addKeywordListsToAllJobs(listsTableModel.getSelectedLists());
+                logger.log(Level.INFO, "Submitted enqueued lists to ingest"); //NON-NLS
+            } else {
+                searchAction(e);
             }
         };
 
@@ -158,7 +142,6 @@ class DropdownListSearchPanel extends KeywordSearchPanel {
         if (ingestRunning) {
             searchAddButton.setText(NbBundle.getMessage(this.getClass(), "KeywordSearchListsViewerPanel.initIngest.addIngestTitle"));
             searchAddButton.setToolTipText(NbBundle.getMessage(this.getClass(), "KeywordSearchListsViewerPanel.initIngest.addIngestMsg"));
-
         } else {
             searchAddButton.setText(NbBundle.getMessage(this.getClass(), "KeywordSearchListsViewerPanel.initIngest.searchIngestTitle"));
             searchAddButton.setToolTipText(NbBundle.getMessage(this.getClass(), "KeywordSearchListsViewerPanel.initIngest.addIdxSearchMsg"));
@@ -324,8 +307,6 @@ class DropdownListSearchPanel extends KeywordSearchPanel {
     private class KeywordListsTableModel extends AbstractTableModel {
 
         private static final long serialVersionUID = 1L;
-        //data
-
         private KeywordSearchSettingsManager listsHandle;
         private List<ListTableEntry> listData = new ArrayList<>();
 
