@@ -41,11 +41,10 @@ final class GlobalListSettingsPanel extends javax.swing.JPanel implements Option
     GlobalListSettingsPanel(KeywordSearchSettingsManager manager) {
         this.manager = manager;
         editListPanel = new GlobalEditListPanel(manager);
-        listsManagementPanel = new GlobalListsManagementPanel(manager);
+        listsManagementPanel = new GlobalListsManagementPanel(manager, this);
         initComponents();
         customizeComponents();
-        setName(org.openide.util.NbBundle.getMessage(DropdownToolbar.class, "ListBundleConfig"));
-        
+        setName(org.openide.util.NbBundle.getMessage(DropdownToolbar.class, "ListBundleConfig"));        
     }
     
     @Messages({"# {0} - keyword list", "KeywordSearchConfigurationPanel1.customizeComponents.kwListSaveFailedMsg=Failed to save <{0}>",
@@ -140,6 +139,7 @@ final class GlobalListSettingsPanel extends javax.swing.JPanel implements Option
         mainSplitPane.revalidate();
         mainSplitPane.repaint();
     }
+    
     @Override
     public void addPropertyChangeListener(PropertyChangeListener l) {
         listsManagementPanel.addPropertyChangeListener(l);
@@ -161,6 +161,13 @@ final class GlobalListSettingsPanel extends javax.swing.JPanel implements Option
     @Override
     public void load() {
         listsManagementPanel.load();
+    }
+
+    /**
+     * Set the keyboard focus to new keyword textbox.
+     */
+    void setFocusOnKeywordTextBox() {
+        editListPanel.setFocusOnKeywordTextBox();
     }
 
     /**

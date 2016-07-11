@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.logging.Level;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
+import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.AbstractTableModel;
@@ -42,14 +43,18 @@ import org.sleuthkit.autopsy.coreutils.Logger;
  */
 class GlobalListsManagementPanel extends javax.swing.JPanel implements OptionsPanel {
 
+    private static final long serialVersionUID = 1L;
+
     private Logger logger = Logger.getLogger(GlobalListsManagementPanel.class.getName());
     private KeywordListTableModel tableModel;
     private KeywordSearchSettingsManager manager;
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+    private final org.sleuthkit.autopsy.keywordsearch.GlobalListSettingsPanel globalListSettingsPanel;
 
     @Messages({"GlobalListsManagementPanel.settingsLoadFail.message=Failed to load keyword settings, using defaults.",
         "GlobalListsManagementPanel.settingsLoadFail.title=Load Failed"})
-    GlobalListsManagementPanel(KeywordSearchSettingsManager manager) {
+    GlobalListsManagementPanel(KeywordSearchSettingsManager manager, GlobalListSettingsPanel gsp) {
+        this.globalListSettingsPanel = gsp;
         tableModel = new KeywordListTableModel();
         this.manager = manager;
         initComponents();
@@ -75,6 +80,12 @@ class GlobalListsManagementPanel extends javax.swing.JPanel implements OptionsPa
         listsTable.setRowSelectionAllowed(true);
         tableModel.resync();
 
+        listsTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                globalListSettingsPanel.setFocusOnKeywordTextBox();
+            }
+        });
         /*
          * XmlKeywordListImportExport.getCurrent().addPropertyChangeListener(new
          * PropertyChangeListener() {
@@ -251,6 +262,7 @@ class GlobalListsManagementPanel extends javax.swing.JPanel implements OptionsPa
          }
      }
      pcs.firePropertyChange(OptionsPanelController.PROP_CHANGED, null, null);
+    globalListSettingsPanel.setFocusOnKeywordTextBox();
     }//GEN-LAST:event_newListButtonActionPerformed
     @Messages({"GlobalListsManagementPanel.deleteListFail.message=Failed to delete list from settings.",
         "GlobalListsManagementPanel.deleteListFail.title=Delete List Failed"})
