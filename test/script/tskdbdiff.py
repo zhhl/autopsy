@@ -197,7 +197,8 @@ class TskDbDiff(object):
 
                 # File Name and artifact type
                 if(row["parent_path"] != None):
-                    database_log.write(row["parent_path"] + row["name"] + ' <artifact type="' + row["display_name"] + '" > ')
+                    parent_path_str = replaceUUID(row["parent_path"])
+                    database_log.write(parent_path_str + row["name"] + ' <artifact type="' + row["display_name"] + '" > ')
                 else:
                     database_log.write(row["name"] + ' <artifact type="' + row["display_name"] + '" > ')
 
@@ -361,26 +362,27 @@ def normalize_db_entry(line, table, vs_parts_table, vs_info_table, fs_info_table
     layout_index = line.find('INSERT INTO "tsk_file_layout"')
     data_source_info_index = line.find('INSERT INTO "data_source_info"')
     ingest_job_index = line.find('INSERT INTO "ingest_jobs"')
+    image_names_index = line.find('INSERT INTO "tsk_image_names"')
     parens = line[line.find('(') + 1 : line.rfind(')')]
     fields_list = parens.replace(" ", "").split(',')
     
     # remove object ID
     if (files_index != -1):
-        obj_id = fields_list[0]
-        path = table[int(obj_id)]
-        newLine = ('INSERT INTO "tsk_files" VALUES(' + ', '.join(fields_list[1:]) + ');') 
+        fields_list[5] = replaceUUID(fields_list[5]) # If the name field inlcude UUID, replace it
+        fields_list[25] = replaceUUID(fields_list[25]) # If the parent_path field inlcude UUID, replace it
+        newLine = ('INSERT INTO "tsk_files" VALUES(' + ', '.join(fields_list[1:]) + ');') # Ignore the obj_id 
         return newLine
     # remove object ID
     elif (path_index != -1):
         obj_id = fields_list[0]
-        objValue = table[int(obj_id)]
+        objValue = table[int(obj_id)] 
         par_obj_id = objects_table[int(obj_id)]
         par_obj_value = table[par_obj_id]
         par_obj_name = par_obj_value[par_obj_value.rfind('/')+1:]
         #check the par_id that we insert to the path name when we create uniqueName
         pathValue = re.sub(par_obj_name + '_' + str(par_obj_id), par_obj_name, fields_list[1])
                 
-        newLine = ('INSERT INTO "tsk_files_path" VALUES(' + objValue + ', ' + pathValue + ', ' + ', '.join(fields_list[2:]) + ');') 
+        newLine = ('INSERT INTO "tsk_files_path" VALUES(' + replaceUUID(objValue) + ', ' + replaceUUID(pathValue) + ', ' + ', '.join(fields_list[2:]) + ');') 
         return newLine
     # remove object ID
     elif (layout_index != -1):
@@ -423,7 +425,7 @@ def normalize_db_entry(line, table, vs_parts_table, vs_info_table, fs_info_table
         
 
         if path and parent_path:
-             return newLine + path + ', ' + parent_path + ', ' + ', '.join(fields_list[2:]) + ');'
+             return newLine + replaceUUID(path) + ', ' + replaceUUID(parent_path) + ', ' + ', '.join(fields_list[2:]) + ');'
         else:
              return line 
     # remove time-based information, ie Test_6/11/14 -> Test    
@@ -444,6 +446,10 @@ def normalize_db_entry(line, table, vs_parts_table, vs_info_table, fs_info_table
             fields_list[3] = "0"
             fields_list[4] = "0"
         newLine = ('INSERT INTO "injest_jobs" VALUES(' + ','.join(fields_list) + ');')
+        return newLine
+    elif (image_names_index != -1):
+        fields_list[1] = replaceLocalCasePath(fields_list[1])
+        newLine = ('INSERT INTO "tsk_image_names" VALUES(' + ','.join(fields_list) + ');')
         return newLine
     else:
         return line
@@ -522,6 +528,26 @@ def build_id_objects_table(artifact_cursor):
     # with the object id as the key and par_obj_id as the value
     mapping = dict([(row[0], row[1]) for row in artifact_cursor.execute("SELECT obj_id, par_obj_id FROM tsk_objects")])
     return mapping
+
+def replaceUUID(path):
+    # Email parser may use random UUID as a filename. Also parent_path may includes this random UUID. This UUID will be inconsistent each time when we run the test.
+    # According en.wikipedia.org/wiki/Universally_unique_identifier, the UUID has the form 8-4-4-4-12 alphanumeric characters and hyphens. So we will normalize this name
+    # with string 'UUID' to make the final dump file result consistent.
+    uuid = re.compile('[0-9a-z]{8}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{12}', re.I)
+    return uuid.sub('UUID', path)
+
+def replaceLocalCasePath(path):
+    # If the local case directory name is in the path, we will ignore it
+    casePath_idx = path.find('ModuleOutput')
+    if casePath_idx > -1:
+        return "'" + replaceDateTime(path[casePath_idx:]) # We only do this kind of data time replacement when we found ModuleOuput in the path
+    else:
+        return path
+
+def replaceDateTime(path):
+    # Case path for Virtual Machine Extractor may create a directory name that include data time. eg. LogicalFileSet1_330_2017_08_01_13_23_25
+    d = re.compile('_[0-9]{4}_[0-1][0-9]_[0-3][0-9]_[0-2][0-9]_[0-5][0-9]_[0-5][0-9]')
+    return d.sub('', path)
 
 def main():
     try:

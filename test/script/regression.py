@@ -17,7 +17,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tskdbdiff import TskDbDiff, TskDbDiffException
+#from tskdbdiff import TskDbDiff, TskDbDiffException
+from tskdbdiff import *
 import codecs
 import datetime
 import logging
@@ -42,6 +43,7 @@ from regression_utils import *
 import shutil
 import ntpath
 import glob
+import fileinput
 #
 # Please read me...
 #
@@ -389,6 +391,7 @@ class TestRunner(object):
         gold_html_report_dir = make_path(image_dir, "Report")
 
         try:
+            normalize_html_report(output_html_report_dir, test_data.output_path)
             shutil.copytree(output_html_report_dir, gold_html_report_dir)
         except OSError as e:
             errors.append(e.error())
@@ -1007,7 +1010,9 @@ class TestResultsDiffer(object):
         """
         gold_report_path = test_data.get_html_report_path(DBType.GOLD)
         output_report_path = test_data.get_html_report_path(DBType.OUTPUT)
+
         try:
+            normalize_html_report(output_report_path, test_data.output_path)
             # Ensure gold is passed before output 
             (subprocess.check_output(["diff", '-r', '-N', '-x', '*.png', '-x', '*.ico', '--ignore-matching-lines',
                                       'HTML Report Generated on \|Autopsy Report for case \|Case:\|Case Number:'
@@ -1595,6 +1600,22 @@ def copy_logs(test_data):
         print_error(test_data,"Error: Failed to copy the logs.")
         print_error(test_data,str(e) + "\n")
         logging.warning(traceback.format_exc())
+
+def normalize_html_report(html_path, casedir):
+    for file in os.listdir(html_path):
+        print(html_path)
+        if file.endswith('.html'):
+            print(file)
+            html_f = make_path(html_path, file)
+            with fileinput.FileInput(html_f, inplace=True) as f:
+                for line in f:
+                    idx_c = line.find(casedir.replace('\\\\', '\\'))
+                    case_line = replaceLocalCasePath(line)
+                    if idx_c > -1 :
+                        case_line = line[:idx_c] + case_line[1:] # keep the html tags: eg. <td>xxxx</td>casedir<td>...
+                    uuid_line = replaceUUID(case_line)
+                    idx_u = uuid_line.find('/UUID/') # only replace that UUID is part of the path name
+                    print(uuid_line[:idx_u] + uuid_line[idx_u + len('/UUID/'):], end='') # end='' makes print not print an additional newline
 
 
 def setDay():
