@@ -1615,7 +1615,10 @@ def normalize_html_report(html_path, casedir):
                         case_line = line[:idx_c] + case_line[1:] # keep the html tags: eg. <td>xxxx</td>casedir<td>...
                     uuid_line = replaceUUID(case_line)
                     idx_u = uuid_line.find('/UUID/') # only replace that UUID is part of the path name
-                    print(uuid_line[:idx_u] + uuid_line[idx_u + len('/UUID/'):], end='') # end='' makes print not print an additional newline
+                    if idx_u > -1:
+                        print(uuid_line, end='') # end='' makes print not print an additional newline
+                    else:
+                        print(case_line, end='') 
 
 
 def setDay():
