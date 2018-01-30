@@ -8,7 +8,6 @@
   </description>
 
   <rule ref="rulesets/java/basic.xml"/>
-  <!--rule ref="rulesets/java/braces.xml"/-->
   <rule ref="rulesets/java/clone.xml"/>
   <rule ref="rulesets/java/codesize.xml"/>
   <rule ref="rulesets/java/comments.xml"/>
@@ -18,18 +17,18 @@
   <rule ref="rulesets/java/empty.xml"/>
   <rule ref="rulesets/java/finalizers.xml"/>
   <rule ref="rulesets/java/imports.xml"/>
-  <rule ref="rulesets/java/junit.xml"/>
   <rule ref="rulesets/java/javabeans.xml"/>
-  <rule ref="rulesets/java/j2ee.xml"/>
   <rule ref="rulesets/java/logging-java.xml"/>
   <rule ref="rulesets/java/migrating.xml"/>
   <rule ref="rulesets/java/migrating_to_13.xml"/>
   <rule ref="rulesets/java/migrating_to_14.xml"/>
   <rule ref="rulesets/java/migrating_to_15.xml"/>
-  <rule ref="rulesets/java/migrating_to_junit4.xml"/>
-  <rule ref="rulesets/java/naming.xml"/>
+  <rule ref="rulesets/java/naming.xml">
+	<exclude name="MethodNamingConvertions"/>
+  </rule>
   <rule ref="rulesets/java/optimizations.xml"/>
-  <rule ref="rulesets/java/strictexception.xml"/>
+  <rule ref="rulesets/java/strictexception.xml">
+	<exclude name="AvoidCatchingGenericException"/>
   <rule ref="rulesets/java/strings.xml"/>
   <rule ref="rulesets/java/sunsecure.xml"/>
   <rule ref="rulesets/java/typeresolution.xml"/>
