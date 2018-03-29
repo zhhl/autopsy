@@ -46,6 +46,7 @@ import org.sleuthkit.autopsy.modules.filetypeid.FileTypeIdModuleFactory;
 import org.sleuthkit.autopsy.modules.interestingitems.FilesSet;
 import org.sleuthkit.autopsy.modules.interestingitems.FilesSet.Rule;
 import org.sleuthkit.autopsy.modules.interestingitems.FilesSet.Rule.ExtensionCondition;
+import org.sleuthkit.autopsy.modules.interestingitems.FilesSet.Rule.FullNameCondition;
 import org.sleuthkit.autopsy.modules.interestingitems.FilesSet.Rule.MetaTypeCondition;
 import org.sleuthkit.autopsy.modules.interestingitems.FilesSet.Rule.ParentPathCondition;
 import org.sleuthkit.autopsy.testutils.DataSourceProcessorRunner;
@@ -194,12 +195,12 @@ public class IngestFileFiltersTest extends TestCase {
         //Build the filter that ingnore unallocated space and with 2 rules
         FilesSet Files_Ext_Dirs_Filter = new FilesSet("Filter", "Filter to find all files in dir1 and all files with jpg extention.", false, true, rules);
         
-          
         try {
             Case openCase = Case.getOpenCase();
             runIngestJob(openCase.getDataSources(), Files_Ext_Dirs_Filter); 
             FileManager fileManager = Case.getOpenCase().getServices().getFileManager();           
-            List<AbstractFile> results = fileManager.findFiles("%%");            
+            List<AbstractFile> results = fileManager.findFiles("%%");
+            assertEquals(62, results.size());
             for (AbstractFile file : results) {               
                 if (file.getNameExtension().equalsIgnoreCase("jpg")) { //All files with .jpg extension should have MIME type
                     String errMsg = String.format("File %s (objId=%d) unexpectedly passed by the file filter.", file.getName(), file.getId());
@@ -223,6 +224,34 @@ public class IngestFileFiltersTest extends TestCase {
         }
     }
     
+    public void testFileNameRule() {
+        HashMap<String, Rule> rules = new HashMap<>();
+        rules.put("Rule", new Rule("testFileType", new FullNameCondition("file.docx"), new MetaTypeCondition(MetaTypeCondition.Type.FILES), null, null, null, null));
+        //Build the filter to find file: file.docx
+        FilesSet FullName_Filter = new FilesSet("Filter", "Filter to find file.docx.", false, true, rules);
+                 
+        try {
+            Case openCase = Case.getOpenCase();
+            runIngestJob(openCase.getDataSources(), FullName_Filter); 
+            FileManager fileManager = Case.getOpenCase().getServices().getFileManager();           
+            List<AbstractFile> results = fileManager.findFiles("%%");
+            assertEquals(62, results.size());
+            for (AbstractFile file : results) {
+                //file.docx have MIME Type
+                if (file.getName().equalsIgnoreCase("file.docx")) {
+                    String errMsg = String.format("File %s (objId=%d) unexpectedly passed by the file filter.", file.getName(), file.getId());
+                    assertTrue(errMsg, file.getMIMEType() != null);
+                } else {
+                    String errMsg = String.format("File %s (objId=%d) unexpectedly caught by the file filter.", file.getName(), file.getId());
+                    assertTrue(errMsg, file.getMIMEType() == null);
+                }
+            }
+        } catch (NoCurrentCaseException | TskCoreException ex) {
+            Exceptions.printStackTrace(ex);
+            Assert.fail(ex);
+        }
+    }
+
     private void runIngestJob(List<Content> datasources, FilesSet filter) {
         FileTypeIdModuleFactory factory = new FileTypeIdModuleFactory();
         IngestModuleIngestJobSettings settings = factory.getDefaultIngestJobSettings();
