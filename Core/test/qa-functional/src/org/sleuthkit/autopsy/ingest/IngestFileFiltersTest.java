@@ -136,7 +136,9 @@ public class IngestFileFiltersTest extends TestCase {
 
         try {
             Case openCase = Case.getOpenCase();
-            runIngestJob(openCase.getDataSources(), null, Files_Dirs_Unalloc_Ingest_Filter);
+            ArrayList<IngestModuleTemplate> templates =  new ArrayList<>();
+            templates.add(getIngestModuleTemplate(new FileTypeIdModuleFactory()));
+            runIngestJob(openCase.getDataSources(), templates, Files_Dirs_Unalloc_Ingest_Filter);
             FileManager fileManager = openCase.getServices().getFileManager();
             List<AbstractFile> results = fileManager.findFiles("file.jpg", "dir1");
             String mimeType = results.get(0).getMIMEType();
@@ -170,7 +172,9 @@ public class IngestFileFiltersTest extends TestCase {
         
         try {
             Case openCase = Case.getOpenCase();
-            runIngestJob(openCase.getDataSources(), null, Files_Ext_Dirs_Filter); 
+            ArrayList<IngestModuleTemplate> templates =  new ArrayList<>();
+            templates.add(getIngestModuleTemplate(new FileTypeIdModuleFactory()));
+            runIngestJob(openCase.getDataSources(), templates, Files_Ext_Dirs_Filter); 
             FileManager fileManager = Case.getOpenCase().getServices().getFileManager();            
             List<AbstractFile> results = fileManager.findFiles("%.jpg%");
             assertEquals(12, results.size());
@@ -199,7 +203,9 @@ public class IngestFileFiltersTest extends TestCase {
         
         try {
             Case openCase = Case.getOpenCase();
-            runIngestJob(openCase.getDataSources(), null, Files_Ext_Dirs_Filter); 
+            ArrayList<IngestModuleTemplate> templates =  new ArrayList<>();
+            templates.add(getIngestModuleTemplate(new FileTypeIdModuleFactory()));
+            runIngestJob(openCase.getDataSources(), templates, Files_Ext_Dirs_Filter); 
             FileManager fileManager = Case.getOpenCase().getServices().getFileManager();           
             List<AbstractFile> results = fileManager.findFiles("%%");
             assertEquals(62, results.size());
@@ -234,7 +240,10 @@ public class IngestFileFiltersTest extends TestCase {
                  
         try {
             Case openCase = Case.getOpenCase();
-            runIngestJob(openCase.getDataSources(), null, FullName_Filter); 
+            ArrayList<IngestModuleTemplate> templates =  new ArrayList<>();
+            templates.add(getIngestModuleTemplate(new FileTypeIdModuleFactory()));
+
+            runIngestJob(openCase.getDataSources(), templates, FullName_Filter); 
             FileManager fileManager = Case.getOpenCase().getServices().getFileManager();           
             List<AbstractFile> results = fileManager.findFiles("%%");
             assertEquals(62, results.size());
@@ -271,8 +280,8 @@ public class IngestFileFiltersTest extends TestCase {
             int others = 0;
             Case openCase = Case.getOpenCase();
             ArrayList<IngestModuleTemplate> templates =  new ArrayList<>();
-            templates.add(getFileTypeModuleTemplate());
-            templates.add(getPhotoRecModuleTemplate());
+            templates.add(getIngestModuleTemplate(new FileTypeIdModuleFactory()));
+            templates.add(getIngestModuleTemplate(new PhotoRecCarverIngestModuleFactory()));
             runIngestJob(openCase.getDataSources(), templates, Extension_Unallocated_Filter); 
             FileManager fileManager = Case.getOpenCase().getServices().getFileManager();
             //test .gif files have MIME type defined
@@ -377,10 +386,6 @@ public class IngestFileFiltersTest extends TestCase {
     }
 
     private void runIngestJob(List<Content> datasources, ArrayList<IngestModuleTemplate> templates, FilesSet filter) {
-        if (templates == null) {
-            templates = new ArrayList<>();
-            templates.add(getFileTypeModuleTemplate());
-        }
         IngestJobSettings ingestJobSettings = new IngestJobSettings(IngestFileFiltersTest.class.getCanonicalName(), IngestType.FILES_ONLY, templates, filter);
         try {
             List<IngestModuleError> errs = IngestJobRunner.runIngestJob(datasources, ingestJobSettings);
@@ -391,16 +396,7 @@ public class IngestFileFiltersTest extends TestCase {
         }        
     }
     
-    private IngestModuleTemplate getFileTypeModuleTemplate() {
-        FileTypeIdModuleFactory factory = new FileTypeIdModuleFactory();
-        IngestModuleIngestJobSettings settings = factory.getDefaultIngestJobSettings();
-        IngestModuleTemplate template = new IngestModuleTemplate(factory, settings);
-        template.setEnabled(true);
-        return template;
-    }
-
-    private IngestModuleTemplate getPhotoRecModuleTemplate() {
-        PhotoRecCarverIngestModuleFactory factory = new PhotoRecCarverIngestModuleFactory();
+    private IngestModuleTemplate getIngestModuleTemplate(IngestModuleFactoryAdapter factory) {
         IngestModuleIngestJobSettings settings = factory.getDefaultIngestJobSettings();
         IngestModuleTemplate template = new IngestModuleTemplate(factory, settings);
         template.setEnabled(true);
