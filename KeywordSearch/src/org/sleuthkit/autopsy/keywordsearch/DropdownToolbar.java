@@ -150,8 +150,8 @@ class DropdownToolbar extends javax.swing.JPanel {
         if (evt != null && !SwingUtilities.isLeftMouseButton(evt)) {
             return;
         }
-        listsPanel.setDataSources(dataSources);
-        //listsPanel.update;
+        //listsPanel.setDataSources(dataSources);
+        //listsPanel.updateDataSourceList();
         listsMenu.show(listsButton, listsButton.getWidth() - listsMenu.getWidth(), listsButton.getHeight() - 1);
     }
 
@@ -162,7 +162,7 @@ class DropdownToolbar extends javax.swing.JPanel {
         if (evt != null && !SwingUtilities.isLeftMouseButton(evt)) {
             return;
         }
-        dropPanel.setDataSources(dataSources);
+        //dropPanel.setDataSources(dataSources);
         //dropPanel.updateDataSourceList();
         searchMenu.show(searchDropButton, searchDropButton.getWidth() - searchMenu.getWidth(), searchDropButton.getHeight() - 1);
     }
@@ -343,6 +343,8 @@ class DropdownToolbar extends javax.swing.JPanel {
     private void listsButtonMousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listsButtonMousePressed
         try {
             maybeShowListsPopup(evt);
+            listsPanel.setDataSources(dataSources);
+            listsPanel.updateDataSourceList();
         } catch (NoCurrentCaseException ex) {
             Exceptions.printStackTrace(ex);
         } catch (TskCoreException ex) {
@@ -356,6 +358,8 @@ class DropdownToolbar extends javax.swing.JPanel {
 
     private void searchDropButtonMousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_searchDropButtonMousePressed
         maybeShowSearchPopup(evt);
+        dropPanel.setDataSources(dataSources);
+        dropPanel.updateDataSourceList();
     }//GEN-LAST:event_searchDropButtonMousePressed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

@@ -394,7 +394,7 @@ public class DropdownSingleTermSearchPanel extends AdHocSearchPanel {
                 return strings.get(idx);
             }
         });
-        //jScrollPane1.setViewportView(dataSourceList);
+        
         setComponentsEnabled();
         firePropertyChange(Bundle.DropdownSingleTermSearchPanel_selected(), null, null);
         
