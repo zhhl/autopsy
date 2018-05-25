@@ -23,14 +23,23 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.logging.Level;
 import javax.swing.SwingUtilities;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
+import org.openide.util.Exceptions;
 import org.sleuthkit.autopsy.casemodule.Case;
+import org.sleuthkit.autopsy.casemodule.NoCurrentCaseException;
 import org.sleuthkit.autopsy.core.RuntimeProperties;
 import org.sleuthkit.autopsy.coreutils.Logger;
+import org.sleuthkit.datamodel.DataSource;
+import org.sleuthkit.datamodel.SleuthkitCase;
+import org.sleuthkit.datamodel.TskCoreException;
 
 /**
  * A panel that provides a toolbar button for the dropdown keyword list search
@@ -45,7 +54,8 @@ class DropdownToolbar extends javax.swing.JPanel {
     private SearchSettingsChangeListener searchSettingsChangeListener;
     private boolean active = false;
     private DropdownSingleTermSearchPanel dropPanel = null;
-
+    DropdownListSearchPanel listsPanel = null;
+    private List<DataSource> dataSources = new ArrayList<>();
     /**
      * Gets the singleton panel that provides a toolbar button for the dropdown
      * keyword list search panel and dropdown single keyword search panel.
@@ -77,13 +87,13 @@ class DropdownToolbar extends javax.swing.JPanel {
     private void customizeComponents() {
         searchSettingsChangeListener = new SearchSettingsChangeListener();
         KeywordSearch.getServer().addServerActionListener(searchSettingsChangeListener);
-        Case.addEventTypeSubscriber(EnumSet.of(Case.Events.CURRENT_CASE), searchSettingsChangeListener);
+        Case.addEventTypeSubscriber(EnumSet.of(Case.Events.CURRENT_CASE, Case.Events.DATA_SOURCE_ADDED), searchSettingsChangeListener);
 
-        DropdownListSearchPanel listsPanel = DropdownListSearchPanel.getDefault();
+        listsPanel = DropdownListSearchPanel.getDefault();
         listsPanel.addSearchButtonActionListener((ActionEvent e) -> {
             listsMenu.setVisible(false);
         });
-
+        listsPanel.addPropertyChangeListener(searchSettingsChangeListener);
         // Adding border of six to account for menu border
         listsMenu.setSize(listsPanel.getPreferredSize().width + 6, listsPanel.getPreferredSize().height + 6);
         listsMenu.add(listsPanel);
@@ -105,6 +115,7 @@ class DropdownToolbar extends javax.swing.JPanel {
         });
 
         dropPanel = DropdownSingleTermSearchPanel.getDefault();
+        dropPanel.addPropertyChangeListener(searchSettingsChangeListener);
         dropPanel.addSearchButtonActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -132,13 +143,15 @@ class DropdownToolbar extends javax.swing.JPanel {
 
     }
 
-    private void maybeShowListsPopup(MouseEvent evt) {
+    private void maybeShowListsPopup(MouseEvent evt) throws NoCurrentCaseException, TskCoreException {
         if (!active || !listsButton.isEnabled()) {
             return;
         }
         if (evt != null && !SwingUtilities.isLeftMouseButton(evt)) {
             return;
         }
+        listsPanel.setDataSources(dataSources);
+        //listsPanel.update;
         listsMenu.show(listsButton, listsButton.getWidth() - listsMenu.getWidth(), listsButton.getHeight() - 1);
     }
 
@@ -149,6 +162,8 @@ class DropdownToolbar extends javax.swing.JPanel {
         if (evt != null && !SwingUtilities.isLeftMouseButton(evt)) {
             return;
         }
+        dropPanel.setDataSources(dataSources);
+        //dropPanel.updateDataSourceList();
         searchMenu.show(searchDropButton, searchDropButton.getWidth() - searchMenu.getWidth(), searchDropButton.getHeight() - 1);
     }
 
@@ -198,6 +213,16 @@ class DropdownToolbar extends javax.swing.JPanel {
                             disableSearch = true;
                         }
                         
+                        //set the data source list
+                        try {
+                            //SleuthkitCase skDb = ((Case)evt.getNewValue()).getSleuthkitCase();
+                            dataSources = getDataSourceList();
+                        } catch (TskCoreException ex) {
+                            logger.log(Level.SEVERE, "Error getting text index info", ex); //NON-NLS
+                            disableSearch = true;
+                        } catch (NoCurrentCaseException ex) {
+                            Exceptions.printStackTrace(ex);
+                        }
                         if (disableSearch) {
                             searchDropButton.setEnabled(false);
                             listsButton.setEnabled(false);
@@ -228,11 +253,18 @@ class DropdownToolbar extends javax.swing.JPanel {
                             break;
                         default:
                     }
+                } else if (changed.equals(Case.Events.DATA_SOURCE_ADDED.toString())) {
+                    DataSource newDataSource = (DataSource) evt.getNewValue();
+                    dataSources.add(newDataSource);
                 }
             }
         }
     }
-
+    
+    private synchronized List<DataSource> getDataSourceList() throws NoCurrentCaseException, TskCoreException {
+        Case openCase = Case.getCurrentCaseThrows();
+        return openCase.getSleuthkitCase().getDataSources();
+    }
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -309,7 +341,13 @@ class DropdownToolbar extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void listsButtonMousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listsButtonMousePressed
-        maybeShowListsPopup(evt);
+        try {
+            maybeShowListsPopup(evt);
+        } catch (NoCurrentCaseException ex) {
+            Exceptions.printStackTrace(ex);
+        } catch (TskCoreException ex) {
+            Exceptions.printStackTrace(ex);
+        }
     }//GEN-LAST:event_listsButtonMousePressed
 
     private void listsButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_listsButtonActionPerformed

@@ -22,15 +22,22 @@ import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import org.openide.util.NbBundle;
+import org.sleuthkit.autopsy.casemodule.Case;
+import org.sleuthkit.autopsy.casemodule.NoCurrentCaseException;
 import org.sleuthkit.autopsy.coreutils.Logger;
 import org.sleuthkit.autopsy.coreutils.MessageNotifyUtil;
 import org.sleuthkit.datamodel.BlackboardAttribute;
+import org.sleuthkit.datamodel.DataSource;
+import org.sleuthkit.datamodel.SleuthkitCase;
+import org.sleuthkit.datamodel.TskCoreException;
 
 /**
  * Keyword list saving, loading, and editing abstract class.
@@ -494,5 +501,21 @@ abstract class KeywordSearchList {
 
     public void setUseForIngest(String key, boolean flag) {
         theLists.get(key).setUseForIngest(flag);
+    }
+    
+        /**
+     * adds the new word list using name id replacing old one if exists with the
+     * same name
+     *
+     * @param name         the name of the new list or list to replace
+     * @param newList      list of keywords
+     * @param useForIngest should this list be used for ingest
+     *
+     */
+    void addDataSource(String name, List<String> newList, boolean useForIngest, boolean ingestMessages, boolean locked) {
+        KeywordList curList = getList(name);
+        final Date now = new Date();
+
+
     }
 }

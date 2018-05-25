@@ -20,10 +20,22 @@ package org.sleuthkit.autopsy.keywordsearch;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
 import org.sleuthkit.autopsy.ingest.IngestManager;
 import org.openide.util.NbBundle;
+import org.sleuthkit.autopsy.casemodule.Case;
+import org.sleuthkit.autopsy.casemodule.NoCurrentCaseException;
+import org.sleuthkit.autopsy.coreutils.Logger;
+import org.sleuthkit.datamodel.DataSource;
+import org.sleuthkit.datamodel.SleuthkitCase;
+import org.sleuthkit.datamodel.TskCoreException;
 
 /**
  * Common functionality among keyword search widgets / panels. This is extended
@@ -35,6 +47,10 @@ abstract class AdHocSearchPanel extends javax.swing.JPanel {
 
     private final String keywordSearchErrorDialogHeader = org.openide.util.NbBundle.getMessage(this.getClass(), "AbstractKeywordSearchPerformer.search.dialogErrorHeader");
     protected int filesIndexed;
+    private final Map<Long, String> dataSourceMap = new HashMap<>();
+    private final List<String> toolTipList = new ArrayList<>();
+    private List<DataSource> dataSources = new ArrayList<>();
+    private static final Logger LOGGER = Logger.getLogger(AdHocSearchPanel.class.getName());
 
     AdHocSearchPanel() {
         initListeners();
@@ -134,5 +150,43 @@ abstract class AdHocSearchPanel extends javax.swing.JPanel {
             KeywordSearchUtil.displayDialog(keywordSearchErrorDialogHeader, NbBundle.getMessage(this.getClass(),
                     "AbstractKeywordSearchPerformer.search.invalidSyntaxHeader"), KeywordSearchUtil.DIALOG_MESSAGE_TYPE.ERROR);
         }
+    }
+    
+    /**
+     * Get dataSourceMap with object id and data source display name. Add the data source full name to toolTipList
+     *
+     * @return The list of data source name
+     */
+    List<String> getDataSourceArray() {
+        List<String> dsList = new ArrayList<>();
+       
+            List<DataSource> dataS = getDataSources();
+            Collections.sort(dataS, (DataSource ds1, DataSource ds2) -> ds1.getName().compareTo(ds2.getName()));
+            for (DataSource ds : dataS) {
+                String dsName = ds.getName();
+                File dataSourceFullName = new File(dsName);
+                String displayName = dataSourceFullName.getName();
+                dataSourceMap.put(ds.getId(), displayName);  
+                toolTipList.add(dsName);
+                dsList.add(displayName);
+            }
+       
+        return dsList;
+    }
+
+    public void setDataSources(List<DataSource> dataSources) {
+        this.dataSources = dataSources;
+    }
+    
+    public List<DataSource> getDataSources() {
+        return this.dataSources;
+    }
+    
+    Map<Long, String> getDataSourceMap() {
+        return dataSourceMap;
+    }
+    
+    List<String> getDataSourceToolTipList() {
+        return toolTipList;
     }
 }
